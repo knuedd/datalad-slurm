@@ -5,7 +5,7 @@
 #SBATCH --time=0:05:00                # walltime (up to 96 hours)
 #SBATCH --ntasks=1                    # number of nodes
 #SBATCH --cpus-per-task=1             # number of tasks per node
-#SBATCH --output=log.slurm-%j.out
+#SBATCH --output=log.slurm-%A_%a.out
 #SBATCH --array=1-7:2
 
 echo "started"
