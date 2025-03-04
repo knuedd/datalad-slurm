@@ -107,6 +107,16 @@ class Finish(Interface):
             action="store_true",
             doc="""List all open scheduled jobs (those which haven't been finished).""",
         ),
+        branches=Parameter(
+            args=("--branches",),
+            action="store_true",
+            doc="""Commit results of jobs into individual branches.""",
+        ),
+        octopus=Parameter(
+            args=("--octopus",),
+            action="store_true",
+            doc="""Commit results of jobs into individual branches and do an octopus merge afterwards.""",
+        ),
         jobs=jobs_opt,
     )
 
@@ -123,6 +133,8 @@ class Finish(Interface):
         close_failed_jobs=False,
         commit_failed_jobs=False,
         list_open_jobs=False,
+        branches=False,
+        octopus=False,
         jobs=None,
     ):
         ds = require_dataset(
@@ -165,7 +177,20 @@ class Finish(Interface):
                     job_status = get_job_status(slurm_job_id)[1]
                     print(f"{slurm_job_id:<10} {job_status}")
             return
+
+        # only needed with --branches or --octopus but declared in any case
+        start_branch=""
+        all_new_branches= []
+        if branches or octopus:
+            start_branch= ds.repo.get_active_branch()
+
         for slurm_job_id in slurm_job_id_list:
+
+            if branches or octopus:
+                new_branch= f"slurm-job-branch-{slurm_job_id}"
+                all_new_branches.append(new_branch)
+                ds.repo.checkout(new_branch,["-b"])
+
             for r in finish_cmd(
                 slurm_job_id,
                 dataset=dataset,
@@ -178,6 +203,15 @@ class Finish(Interface):
             ):
                 yield r
 
+            if branches or octopus:
+                ds.repo.checkout(f"{start_branch}")
+
+        if octopus:
+            # WORKAROUND the "-q" is a workaround for the current 'merge()' routine 
+            # in datalad/datalad/support/gitrepo.py
+            # currently there are only one-way merges allowed if you call it like intended ... but if we
+            # use -q as 'name' and put all the branches into 'options' it will work fow now
+            ds.repo.merge("-q", all_new_branches, msg="Merge all branches from finished jobs")
 
 def get_scheduled_commits(dset):
     """Return the slurm job ids of all open jobs."""
