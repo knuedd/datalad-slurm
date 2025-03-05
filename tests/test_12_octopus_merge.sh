@@ -28,7 +28,7 @@ echo "from src dir "$B
 
 ## create a test repo
 
-TESTDIR=$D/"datalad-slurm-test-01_"`date -Is|tr -d ":"`
+TESTDIR=$D/"datalad-slurm-test-12_"`date -Is|tr -d ":"`
 
 datalad create -c text2git $TESTDIR
 
@@ -48,7 +48,7 @@ source slurm_config.txt
 # Create the script
 cat << EOF > $TESTDIR/slurm.template.sh
 #!/bin/bash
-#SBATCH --job-name="DLtest01"         # name of the job
+#SBATCH --job-name="DLtest12"         # name of the job
 #SBATCH --partition=$partition
 #SBATCH -A $account
 #SBATCH --time=0:02:00                # walltime (up to 96 hours)
@@ -76,7 +76,7 @@ TARGETS=`seq 8`
 
 for i in $TARGETS ; do
 
-    DIR="test_01_output_dir_"$i
+    DIR="test_12_output_dir_"$i
     mkdir -p $DIR
 
     cp slurm.template.sh $DIR/slurm.sh
@@ -87,7 +87,7 @@ datalad save -m "add test job dirs and scripts"
 
 for i in $TARGETS ; do
 
-    DIR="test_01_output_dir_"$i
+    DIR="test_12_output_dir_"$i
 
     cd $DIR
     datalad slurm-schedule -o $PWD sbatch slurm.sh
@@ -95,7 +95,7 @@ for i in $TARGETS ; do
 
 done
 
-while [[ 0 != `squeue -u $USER | grep "DLtest01" | wc -l` ]] ; do
+while [[ 0 != `squeue -u $USER | grep "DLtest12" | wc -l` ]] ; do
 
     echo "    ... wait for jobs to finish"
     sleep 1m
