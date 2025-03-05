@@ -343,7 +343,9 @@ def _execute_slurm_command(command, pwd):
 
         if match:
             job_id = match.group(1)
+            lgr.info("== Slurm submission complete =====")
         else:
+            job_id = None
             lgr.warning("Could not extract job ID from Slurm output")
 
     except subprocess.SubprocessError as e:
@@ -351,7 +353,6 @@ def _execute_slurm_command(command, pwd):
         cmd_exitcode = e.returncode if hasattr(e, "returncode") else 1
         lgr.error(f"Command failed with exit code {cmd_exitcode}")
 
-    lgr.info("== Slurm submission complete =====")
     return cmd_exitcode or 0, exc, job_id
 
 
@@ -655,6 +656,15 @@ def schedule_cmd(
     # TODO what happens in case of inject??
     if not inject:
         cmd_exitcode, exc, slurm_job_id = _execute_slurm_command(cmd_expanded, pwd)
+        if not slurm_job_id:
+            yield get_status_dict(
+                "slurm-schedule",
+                ds=ds,
+                status="impossible",
+                message=("No job was submitted to slurm. "
+                         "Check your submission script exists and is valid."),
+            )
+            return
         slurm_run_info["exit"] = cmd_exitcode
         # TODO: expand these paths
         slurm_outputs, slurm_env_file = get_slurm_output_files(slurm_job_id)
