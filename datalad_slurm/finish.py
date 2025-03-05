@@ -178,18 +178,12 @@ class Finish(Interface):
                     print(f"{slurm_job_id:<10} {job_status}")
             return
 
-        # only needed with --branches or --octopus but declared in any case
-        start_branch=""
         all_new_branches= []
-        if branches or octopus:
-            start_branch= ds.repo.get_active_branch()
 
         for slurm_job_id in slurm_job_id_list:
 
-            if branches or octopus:
-                new_branch= f"slurm-job-branch-{slurm_job_id}"
-                all_new_branches.append(new_branch)
-                ds.repo.checkout(new_branch,["-b"])
+            new_branch= f"slurm-job-branch-{slurm_job_id}"
+            all_new_branches.append(new_branch)
 
             for r in finish_cmd(
                 slurm_job_id,
@@ -199,19 +193,24 @@ class Finish(Interface):
                 explicit=explicit,
                 close_failed_jobs=close_failed_jobs,
                 commit_failed_jobs=commit_failed_jobs,
+                branch=new_branch,
                 jobs=None,
             ):
                 yield r
 
-            if branches or octopus:
-                ds.repo.checkout(f"{start_branch}")
-
         if octopus:
+
+            # Filter the branches in 'all_new_branches' against all existing branches because some may not exist
+            # ... they don't get created when finish_cmd() finds the job invalid
+            all_new_branches= list(set(all_new_branches) & set(ds.repo.get_branches()))
+
             # WORKAROUND the "-q" is a workaround for the current 'merge()' routine 
             # in datalad/datalad/support/gitrepo.py
             # currently there are only one-way merges allowed if you call it like intended ... but if we
             # use -q as 'name' and put all the branches into 'options' it will work fow now
             ds.repo.merge("-q", all_new_branches, msg="Merge all branches from finished jobs")
+            for b in all_new_branches:
+                ds.repo.remove_branch(b)
 
 def get_scheduled_commits(dset):
     """Return the slurm job ids of all open jobs."""
@@ -235,6 +234,7 @@ def finish_cmd(
     explicit=True,
     close_failed_jobs=False,
     commit_failed_jobs=False,
+    branch=None,
     jobs=None,
 ):
     """
@@ -254,6 +254,8 @@ def finish_cmd(
         If True, requires a clean dataset to detect changes. Default is True.
     close_failed_jobs : bool, optional
         If True, closes failed or cancelled jobs. Default is False.
+    branch : str, optional
+        If not None, create a separate branch for the results of this job with this name. Default is None.
     jobs : int, optional
         Number of parallel jobs to use for saving. Default is None.
 
@@ -284,7 +286,7 @@ def finish_cmd(
             ),
         )
         return
-    
+
     # TODO: this should probably be deleted?
     if not ds_repo.get_hexsha():
         yield get_status_dict(
@@ -399,6 +401,11 @@ def finish_cmd(
     # remove the job
     remove_from_database(ds, slurm_run_info)
 
+    start_branch=""
+    if branch:
+        start_branch= ds.repo.get_active_branch()
+        ds.repo.checkout(branch,["-b"])
+
     if do_save:
         with chpwd(pwd):
             for r in Save.__call__(
@@ -415,6 +422,9 @@ def finish_cmd(
                 on_failure="ignore",
             ):
                 yield r
+
+    if branch:
+        ds.repo.checkout(f"{start_branch}")
 
 
 def extract_from_db(dset, slurm_job_id):
