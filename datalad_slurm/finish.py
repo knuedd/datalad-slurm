@@ -182,8 +182,10 @@ class Finish(Interface):
 
         for slurm_job_id in slurm_job_id_list:
 
-            new_branch= f"slurm-job-branch-{slurm_job_id}"
-            all_new_branches.append(new_branch)
+            new_branch= None
+            if branches or octopus:
+                new_branch= f"slurm-job-branch-{slurm_job_id}"
+                all_new_branches.append(new_branch)
 
             for r in finish_cmd(
                 slurm_job_id,
