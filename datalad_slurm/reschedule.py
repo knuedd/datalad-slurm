@@ -344,7 +344,7 @@ def _rerun_as_results(dset, revrange, since, message, rev_branch, with_failed_jo
     ds_repo = dset.repo
     # Drop any leading commits that don't have a slurm run command. These would be
     # skipped anyways.
-    results = list(dropwhile(lambda r: "slurm_run_info" not in r, results))
+    results = [result for result in results if "slurm_run_info" in result]
     # now drop the results which did not run succesfully
     if not with_failed_jobs:
         results = [result for result in results if not result["job_failed"]]
