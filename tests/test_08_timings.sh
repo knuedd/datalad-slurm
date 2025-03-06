@@ -69,7 +69,7 @@ chmod u+x $TESTDIR/slurm.template.sh
 
 cd $TESTDIR
 
-TARGETS=`seq 1 10`
+TARGETS=`seq 1 1000`
 
 echo "Create job scripts:"
 

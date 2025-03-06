@@ -2,7 +2,7 @@
 
 set +e # continue on errors
 
-# Test datalad 'schedule' and 'finish --list-open-jobs' and 'finish' functionality
+# Test datalad 'slurm-schedule' and 'slurm-finish --list-open-jobs' and 'slurm-finish' functionality
 #   - measure how long they take with growing git log length
 #
 # Expected results: should run without any errors
@@ -36,7 +36,7 @@ echo "from src dir "$B
 
 ## create a test repo
 
-TESTDIR=$D/"datalad-slurm-test-08_"`date -Is|tr -d ":"`
+TESTDIR=$D/"datalad-slurm-test-09_"`date -Is|tr -d ":"`
 
 datalad create -c text2git $TESTDIR
 
@@ -54,7 +54,7 @@ source slurm_config.txt
 # Create the script
 cat <<EOF > $TESTDIR/slurm.template.sh
 #!/bin/bash
-#SBATCH --job-name="DLtest08"         # name of the job
+#SBATCH --job-name="DLtest09"         # name of the job
 #SBATCH --partition=defq              # partition to be used (defq, gpu or intel)
 #SBATCH -A casus
 #SBATCH --time=0:02:00                # walltime (up to 96 hours)
@@ -88,7 +88,7 @@ for i in $TARGETS ; do
 
     echo $M/$i
 
-    DIR="$M/test_08_output_dir_$i"
+    DIR="$M/test_09_output_dir_$i"
     mkdir -p $DIR.datalad $DIR.slurm
 
     cp slurm.template.sh $DIR.datalad/slurm.sh
@@ -118,19 +118,19 @@ echo "num_jobs time">timing_slurm.txt
 for i in $TARGETS ; do
 
     M=$(($i%30))
-    DIR="$M/test_08_output_dir_$i"
+    DIR="$M/test_09_output_dir_$i"
     mkdir -p $DIR.datalad $DIR.slurm
 
     EXTRAOUT=""
     for e in `seq $NUMOUTEXTRA`; do
 
-        EXTRAOUT=$EXTRAOUT" -o IDONTEXIST$e/test_08_output_dir_$i/test$e.txt"
+        EXTRAOUT=$EXTRAOUT" -o IDONTEXIST$e/test_09_output_dir_$i/test$e.txt"
     done
 
-    echo "    running: datalad schedule -o $DIR.datalad $EXTRAOUT sbatch --chdir $DIR.datalad slurm.sh"
+    echo "    running: datalad slurm-schedule -o $DIR.datalad $EXTRAOUT sbatch --chdir $DIR.datalad slurm.sh"
 
     echo -n $i" ">>timing_schedule.txt
-    /usr/bin/time -f "%e" -o timing_schedule.txt -a datalad schedule -o $DIR.datalad $EXTRAOUT sbatch --chdir $DIR.datalad slurm.sh
+    /usr/bin/time -f "%e" -o timing_schedule.txt -a datalad slurm-schedule -o $DIR.datalad $EXTRAOUT sbatch --chdir $DIR.datalad slurm.sh
 
     sleep 0.1s
 
@@ -140,7 +140,7 @@ for i in $TARGETS ; do
     sleep 0.1s
 
     if [[ 0 == $M ]]; then
-        while [[ $LIMITJOBS < `squeue -u $USER | grep "DLtest08" | wc -l` ]] ; do
+        while [[ $LIMITJOBS < `squeue -u $USER | grep "DLtest09" | wc -l` ]] ; do
 
             echo "    ... wait for jobs to finish inbetween"
             sleep 30s
@@ -151,19 +151,19 @@ for i in $TARGETS ; do
     ## disabled because it gets very slow after 1000 jobs or so
     #if [[ 0 == $M ]]; then
     #    echo -n $i" ">>timing_finish-list.txt
-    #    /usr/bin/time -f "%e" -o timing_finish-list.txt -a datalad finish --list-open-jobs
+    #    /usr/bin/time -f "%e" -o timing_finish-list.txt -a datalad slurm-finish --list-open-jobs
     #fi
 done
 
-scancel -n "DLtest08"
+scancel -n "DLtest09"
 
 echo "done waiting" 
 
-# for the benchmarking of `datalad schedule` don't call `datalad finish` because it takes very long
+# for the benchmarking of `datalad slurm-schedule` don't call `datalad slurm-finish` because it takes very long
 exit 0
 
 echo "finishing completed jobs:"
-/usr/bin/time -f "%e" -o timing_finish.txt -a datalad finish
+/usr/bin/time -f "%e" -o timing_finish.txt -a datalad slurm-finish
 
 
 
