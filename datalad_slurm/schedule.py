@@ -372,7 +372,6 @@ def schedule_cmd(
     reslurm_run_info=None,
     extra_inputs=None,
     rerun_outputs=None,
-    inject=False,
     parametric_record=False,
     remove_outputs=False,
     skip_dirtycheck=False,
@@ -401,11 +400,6 @@ def schedule_cmd(
     rerun_outputs : list, optional
         Outputs, in addition to those in `outputs`, determined automatically
         from a previous run. This is used internally by `rerun`.
-    inject : bool, optional
-        Record results as if a command was run, skipping input and output
-        preparation and command execution. In this mode, the caller is
-        responsible for ensuring that the state of the working tree is
-        appropriate for recording the command's results.
     parametric_record : bool, optional
         If enabled, substitution placeholders in the input/output specification
         are retained verbatim in the run record. This enables using a single
@@ -468,7 +462,7 @@ def schedule_cmd(
     specs["outputs"] = [output.rstrip("/") for output in specs["outputs"]]
 
     # skip for callers that already take care of this
-    if not (skip_dirtycheck or reslurm_run_info or inject):
+    if not (skip_dirtycheck or reslurm_run_info):
         # For explicit=True, we probably want to check whether any inputs have
         # modifications. However, we can't just do is_dirty(..., path=inputs)
         # because we need to consider subdatasets and untracked files.
@@ -568,7 +562,7 @@ def schedule_cmd(
         )
         return
 
-    if not (inject or dry_run):
+    if not dry_run:
         yield from _prep_worktree(
             ds_path,
             pwd,
@@ -653,25 +647,23 @@ def schedule_cmd(
         )
         return
 
-    # TODO what happens in case of inject??
-    if not inject:
-        cmd_exitcode, exc, slurm_job_id = _execute_slurm_command(cmd_expanded, pwd)
-        if not slurm_job_id:
-            yield get_status_dict(
-                "slurm-schedule",
-                ds=ds,
-                status="impossible",
-                message=("No job was submitted to slurm. "
-                         "Check your submission script exists and is valid."),
-            )
-            return
-        slurm_run_info["exit"] = cmd_exitcode
-        # TODO: expand these paths
-        slurm_outputs, slurm_env_file = get_slurm_output_files(slurm_job_id)
-        slurm_run_info["outputs"].extend(slurm_outputs)
-        slurm_run_info["outputs"].append(slurm_env_file)
-        slurm_run_info["slurm_outputs"] = slurm_outputs
-        slurm_run_info["slurm_outputs"].append(slurm_env_file)
+    cmd_exitcode, exc, slurm_job_id = _execute_slurm_command(cmd_expanded, pwd)
+    if not slurm_job_id:
+        yield get_status_dict(
+            "slurm-schedule",
+            ds=ds,
+            status="impossible",
+            message=("No job was submitted to slurm. "
+                     "Check your submission script exists and is valid."),
+        )
+        return
+    slurm_run_info["exit"] = cmd_exitcode
+    # TODO: expand these paths
+    slurm_outputs, slurm_env_file = get_slurm_output_files(slurm_job_id)
+    slurm_run_info["outputs"].extend(slurm_outputs)
+    slurm_run_info["outputs"].append(slurm_env_file)
+    slurm_run_info["slurm_outputs"] = slurm_outputs
+    slurm_run_info["slurm_outputs"].append(slurm_env_file)
 
     # add the slurm job id to the run info
     slurm_run_info["slurm_job_id"] = slurm_job_id

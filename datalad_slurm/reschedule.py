@@ -152,7 +152,7 @@ class Reschedule(Interface):
         with_failed_jobs=Parameter(
             args=("--with-failed-jobs",),
             action="store_true",
-            doc="""Reschedule jobs that did not succesfully run, i.e. whose status
+            doc="""Reschedule jobs that did not successfully run, i.e. whose status
             is not 'Completed'. By default, these are ignored in a reschedule.""",
         ),        
         assume_ready=reschedule_assume_ready_opt,
@@ -345,7 +345,7 @@ def _rerun_as_results(dset, revrange, since, message, rev_branch, with_failed_jo
     # Drop any leading commits that don't have a slurm run command. These would be
     # skipped anyways.
     results = [result for result in results if "slurm_run_info" in result]
-    # now drop the results which did not run succesfully
+    # now drop the results which did not run successfully
     if not with_failed_jobs:
         results = [result for result in results if not result["job_failed"]]
     
