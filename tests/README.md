@@ -16,4 +16,4 @@ You must have a `slurm_config.txt` file to run the tests, containing account and
 
 Descriptions of each test can be found in the top of the test script. 
 
-Note: `test_08_timings.sh` and `test_08_timings_very_many_jobs_dont_finish.sh` are a bit different to the other tests, in that they don't test the `datalad-slurm` functionality, but only the time scaling properties. 
+Note: `test_08_timings.sh` and `test_09_timings_very_many_jobs_dont_finish.sh` are a bit different to the other tests, in that they don't test the `datalad-slurm` functionality, but only the time scaling properties. 
