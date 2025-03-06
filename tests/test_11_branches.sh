@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 
-set +e # continue on errors
+set -e # abort on errors
 
-# Test datalad 'slurm-schedule' and 'slurm-finish --list-open-jobs' and 'slurm-finish' functionality
-#   - measure how long they take with growing git log length
+# Test datalad 'slurm-schedule' and 'slurm-finish' functionality
+#   - create some job dirs and job scripts and 'commit' them
+#   - then 'datalad slurm-schedule' all jobs from their job dirs
+#   - wait until all of them are finished, then run 'datalad slurm-finish'
 #
 # Expected results: should run without any errors
-
 
 if [[ -z $1 ]] ; then
 
@@ -27,12 +28,14 @@ echo "from src dir "$B
 
 ## create a test repo
 
-TESTDIR=$D/"datalad-slurm-test-08_"`date -Is|tr -d ":"`
+TESTDIR=$D/"datalad-slurm-test-11_"`date -Is|tr -d ":"`
 
 datalad create -c text2git $TESTDIR
 
 
 ### generic part for all the tests ending here, specific parts follow ###
+
+# make the slurm batch script
 
 if [ ! -f "slurm_config.txt" ]; then
     echo "Error: slurm_config.txt must exist"
@@ -43,21 +46,21 @@ fi
 source slurm_config.txt
 
 # Create the script
-cat <<EOF > $TESTDIR/slurm.template.sh
+cat << EOF > $TESTDIR/slurm.template.sh
 #!/bin/bash
-#SBATCH --job-name="DLtest08"         # name of the job
-#SBATCH --partition=casus             # partition to be used (defq, gpu or intel)
-#SBATCH -A casus
+#SBATCH --job-name="DLtest11"         # name of the job
+#SBATCH --partition=$partition
+#SBATCH -A $account
 #SBATCH --time=0:02:00                # walltime (up to 96 hours)
 #SBATCH --ntasks=1                    # number of nodes
 #SBATCH --cpus-per-task=1             # number of tasks per node
 #SBATCH --output=log.slurm-%j.out
 echo "started"
-OUTPUT="output_test_"\$(date -Is|tr -d ":").txt
+OUTPUT="output_test_"\`date -Is|tr -d ":"\`.txt
 # simulate some text output
-for i in \$(seq 1 20); do
-   echo \$i | tee -a \$OUTPUT
-   sleep 1s
+for i in \`seq 1 20\`; do
+    echo \$i | tee -a \$OUTPUT
+    sleep 1s
 done
 # simulate some binary output which will become an annex file
 bzip2 -k \$OUTPUT
@@ -69,13 +72,11 @@ chmod u+x $TESTDIR/slurm.template.sh
 
 cd $TESTDIR
 
-TARGETS=`seq 1 10`
-
-echo "Create job scripts:"
+TARGETS=`seq 8`
 
 for i in $TARGETS ; do
 
-    DIR="test_08_output_dir_"$i
+    DIR="test_11_output_dir_"$i
     mkdir -p $DIR
 
     cp slurm.template.sh $DIR/slurm.sh
@@ -84,35 +85,26 @@ done
 
 datalad save -m "add test job dirs and scripts"
 
-echo "Schedule jobs:"
-echo "# num_jobs time">timing_schedule.txt
-echo "# num_jobs time">timing_finish-list.txt
 for i in $TARGETS ; do
 
-    DIR="test_08_output_dir_"$i
+    DIR="test_11_output_dir_"$i
 
-
-    echo -n $i" ">>timing_schedule.txt
-    /usr/bin/time -f "%e" -o timing_schedule.txt -a datalad slurm-schedule -o $DIR sbatch --chdir $DIR slurm.sh
-
-    sleep 0.1s
-
-    ## TODO the following line produces a error sometimes: "[ERROR  ] Job 9889098 not found"
-    echo -n $i" ">>timing_finish-list.txt
-    /usr/bin/time -f "%e" -o timing_finish-list.txt -a datalad slurm-finish --list-open-jobs
+    cd $DIR
+    datalad slurm-schedule -o $PWD sbatch slurm.sh
+    cd ..
 
 done
 
-while [[ 0 != `squeue -u $USER | grep "DLtest08" | wc -l` ]] ; do
+while [[ 0 != `squeue -u $USER | grep "DLtest11" | wc -l` ]] ; do
 
     echo "    ... wait for jobs to finish"
     sleep 1m
 done
 
-echo "done waiting"
+datalad slurm-finish --list-open-jobs
 
 echo "finishing completed jobs:"
-/usr/bin/time -f "%e" -o timing_finish.txt -a datalad slurm-finish
+datalad slurm-finish --branches
 
 #echo " ### git log in this repo ### "
 #echo ""
