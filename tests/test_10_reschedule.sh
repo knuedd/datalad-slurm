@@ -31,7 +31,7 @@ echo "from src dir "$B
 
 ## create a test repo
 
-TESTDIR=$D/"datalad-slurm-test-09_"`date -Is|tr -d ":"`
+TESTDIR=$D/"datalad-slurm-test-10_"`date -Is|tr -d ":"`
 
 datalad create -c text2git $TESTDIR
 
@@ -51,7 +51,7 @@ source slurm_config.txt
 # Create the script
 cat << EOF > $TESTDIR/slurm.template.sh
 #!/bin/bash
-#SBATCH --job-name="DLtest09"         # name of the job
+#SBATCH --job-name="DLtest10"         # name of the job
 #SBATCH --partition=$partition        
 #SBATCH -A $account
 #SBATCH --time=0:05:00                # walltime (up to 96 hours)
@@ -79,7 +79,7 @@ TARGETS=`seq 0 2`
 
 for i in $TARGETS ; do
 
-    DIR="test_09_output_dir_"$i
+    DIR="test_10_output_dir_"$i
     mkdir -p $DIR
 
     cp slurm.template.sh $DIR/slurm.sh
@@ -90,7 +90,7 @@ datalad save -m "add test job dirs and scripts"
 
 for i in $TARGETS ; do
 
-    DIR="test_09_output_dir_"$i
+    DIR="test_10_output_dir_"$i
 
     cd $DIR
     datalad slurm-schedule -o $PWD sbatch slurm.sh
@@ -98,7 +98,7 @@ for i in $TARGETS ; do
 
 done
 
-while [[ 0 != `squeue -u $USER | grep "DLtest09" | wc -l` ]] ; do
+while [[ 0 != `squeue -u $USER | grep "DLtest10" | wc -l` ]] ; do
 
     echo "    ... wait for jobs to finish"
     sleep 1m
@@ -117,7 +117,7 @@ datalad slurm-reschedule --since=
 echo "rescheduling jobs with conflicts (should fail):"
 datalad slurm-reschedule --since=
 
-while [[ 0 != `squeue -u $USER | grep "DLtest09" | wc -l` ]] ; do
+while [[ 0 != `squeue -u $USER | grep "DLtest10" | wc -l` ]] ; do
 
     echo "    ... wait for jobs to finish"
     sleep 1m
