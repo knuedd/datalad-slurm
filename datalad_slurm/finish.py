@@ -251,16 +251,6 @@ def finish_cmd(
         )
         return
     
-    # TODO: this should probably be deleted?
-    if not ds_repo.get_hexsha():
-        yield get_status_dict(
-            "slurm-finish",
-            ds=ds,
-            status="impossible",
-            message="cannot rerun command, nothing recorded",
-        )
-        return
-
     # if committing failed jobs, close_failed_jobs must be set to True
     if commit_failed_jobs:
         close_failed_jobs = True
@@ -325,7 +315,6 @@ def finish_cmd(
     # update the run info with the new outputs
     slurm_run_info["outputs"] = globbed_outputs
 
-    # TODO: this is not saving model files (outputs from first job) for some reason
     # rel_pwd = reslurm_run_info.get('pwd') if reslurm_run_info else None
     rel_pwd = None  # TODO might be able to get this from rerun info
     if rel_pwd and dataset:

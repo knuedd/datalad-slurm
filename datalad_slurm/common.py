@@ -57,9 +57,7 @@ def get_finish_info(dset, message):
             raise ValueError(
                 "Run record sidecar file not found: {}".format(record_path)
             )
-        # TODO `get` the file
         recs = load_stream(record_path, compressed=True)
-        # TODO check if there is a record
         runinfo = next(recs)
     if "cmd" not in runinfo:
         raise ValueError("Looks like a finish commit but does not have a command")
