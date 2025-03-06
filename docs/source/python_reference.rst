@@ -5,4 +5,6 @@ High-level API commands
 .. autosummary::
    :toctree: generated
 
-   hello_cmd
+   slurm_schedule
+   slurm_finish
+   slurm_reschedule

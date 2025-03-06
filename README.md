@@ -1,56 +1,154 @@
-# DataLad extension template
+# datalad-slurm: A DataLad extension for HPC (slurm) systems
 
 [![Build status](https://ci.appveyor.com/api/projects/status/g9von5wtpoidcecy/branch/main?svg=true)](https://ci.appveyor.com/project/mih/datalad-extension-template/branch/main) [![codecov.io](https://codecov.io/github/datalad/datalad-extension-template/coverage.svg?branch=main)](https://codecov.io/github/datalad/datalad-extension-template?branch=main) [![crippled-filesystems](https://github.com/datalad/datalad-extension-template/workflows/crippled-filesystems/badge.svg)](https://github.com/datalad/datalad-extension-template/actions?query=workflow%3Acrippled-filesystems) [![docs](https://github.com/datalad/datalad-extension-template/workflows/docs/badge.svg)](https://github.com/datalad/datalad-extension-template/actions?query=workflow%3Adocs)
 
 
-This repository contains an extension template that can serve as a starting point
-for implementing a [DataLad](http://datalad.org) extension. An extension can
-provide any number of additional DataLad commands that are automatically
-included in DataLad's command line and Python API.
+`datalad-slurm` is an extension to the [DataLad](http://datalad.org) package for high-performance computing (HPC), specifically slurm systems. 
 
-For a demo, clone this repository and install the demo extension via
+DataLad is a package which facilitates adherence to the [FAIR](https://www.nature.com/articles/sdata201618) research data management principles.
+
+`datalad-slurm` sits on top of the main DataLad package, and it is designed to improve the DataLad workflow on HPC systems. The package is aimed at slurm systems due to the prominence of slurm in HPC settings, but in the future it may be extended to HPC systems more generally. 
+
+`datalad-slurm` makes it easier for users to manage their research data on HPC systems with DataLad, and also solves the following conflicts of DataLad usage in HPC systems:
+
+- **Inefficient** sequential sections in highly parallel HPC jobs
+- **Critical** race conditions between git commands in concurrent jobs
+
+## Installation
+
+First, install the main [DataLad](http://datalad.org) package and its dependencies.
+
+Then, clone this repository and install the extension with:
 
     pip install -e .
 
-DataLad will now expose a new command suite with a `hello...` command.
+## Example usage
 
-    % datalad --help |grep -B2 -A2 hello
-    *Demo DataLad command suite*
+To **schedule** a slurm script:
 
-      hello-cmd
-          Short description of the command
+    datalad slurm-schedule --output=<output_files_or_dir> <slurm_submission_command>
 
-To start implementing your own extension, [use this
-template](https://github.com/datalad/datalad-extension-template/generate), and
-adjust as necessary. A good approach is to
+where `<output_files_or_dir>` are the expected outputs from the job, and `<slurm_submission_command>` is for example `sbatch submit_script`. Further optional command line arguments can be found in the documentation.
 
-- Pick a name for the new extension.
-- Look through the sources and replace `helloworld` with
-  `<newname>` (hint: `git grep helloworld` should find all
-  spots).
-- Delete the example command implementation in `datalad_helloworld/hello_cmd.py`.
-- Implement a new command, and adjust the `command_suite` in
-  `datalad_helloworld/__init__.py` to point to it.
-- Replace `hello_cmd` with the name of the new command in
-  `datalad_helloworld/tests/test_register.py` to automatically test whether the
-  new extension installs correctly.
-- Adjust the documentation in `docs/source/index.rst`. Refer to [`docs/README.md`](docs/README.md) for more information on documentation building, testing and publishing.
-- Replace this README, and/or update the links in the badges at the top.
-- Update `setup.cfg` with appropriate metadata on the new extension.
-- Generate GitHub labels for use by the "Add changelog.d snippet" and
-  "Auto-release on PR merge" workflows by using the code in the
-  `datalad/release-action` repository [as described in its
-  README](https://github.com/datalad/release-action#command-labels).
+Multiple jobs (including array jobs) can be scheduled sequentially. They are tracked in an SQLite database. Note that any open jobs must not have conflicting outputs with previously scheduled jobs. This is so that the outputs of each slurm run can be tracked to the slurm job which generated them.
 
-You can consider filling in the provided [.zenodo.json](.zenodo.json) file with
-contributor information and [meta data](https://developers.zenodo.org/#representation)
-to acknowledge contributors and describe the publication record that is created when
-[you make your code citeable](https://guides.github.com/activities/citable-code/)
-by archiving it using [zenodo.org](https://zenodo.org/). You may also want to
-consider acknowledging contributors with the
-[allcontributors bot](https://allcontributors.org/docs/en/bot/overview).
+To **finish** (i.e. post-process) these jobs (once they are complete), simply run:
 
-# Contributing
+    datalad slurm-finish
+
+Alternatively, to finish a particular scheduled job, run:
+
+    datalad slurm-finish <slurm_job_id>
+
+This will create a `[DATALAD SLURM RUN]` entry in the git log, analogous to a `datalad run` command.
+
+`datalad-slurm` will flag an error for any jobs which could not be post-processed, either because they are still running, or the job failed. These are not automatically cleared from the SQLite database. The output files should first be removed or manually added in git, before running
+
+    datalad slurm-finish --close-failed-jobs
+
+To clear the SQLite database. To inspect the current status of all open jobs (without saving anything in git), run:
+
+    datalad slurm-finish --list-open-jobs
+
+To **reschedule** a previously scheduled job:
+
+    datalad slurm-reschedule <schedule_commit_hash>
+
+where `<schedule_commit_hash>` is the commit hash of the previously scheduled job. There must also be a corresponding `datalad slurm-finish` command to the original `datalad slurm-schedule`, otherwise `datalad slurm-reschedule` will throw an error.
+
+In the lingo of the original DataLad package, the combination of `datalad slurm-schedule + datalad slurm-finish` is similar to `datalad run`, and `datalad slurm-reschedule + datalad slurm-finish` is similar to `datalad rerun`.
+
+An example workflow could look like this (constructed deliberately to have some failed jobs):
+
+    datalad slurm-schedule -o models/abrupt/gold/ sbatch submit_gold.slurm
+    datalad slurm-schedule -o models/abrupt/silver/ sbatch submit_silver.slurm
+    datalad slurm-schedule -o models/abrupt/bronze/ sbatch submit_bronze.slurm
+    datalad slurm-schedule -o models/abrupt/platinum/ sbatch submit_array_platinum.slurm
+
+Checking the job statuses at some point while they are running:
+
+    datalad slurm-finish --list-open-jobs
+    
+    The following jobs are open: 
+
+    slurm-job-id   slurm-job-status
+    10524442       COMPLETED
+    10524535       RUNNING
+    10524556       FAILED
+    10524620       PENDING
+
+Later, once all the jobs have finished running:
+
+    datalad slurm-finish
+    
+    add(ok): models/abrupt/gold/05_02/slurm-10524442.out (file)                                                                                                                                                         
+    add(ok): models/abrupt/gold/05_02/slurm-job-10524442.env.json (file)                                                                                                                                                
+    add(ok): models/abrupt/gold/05_02/model_0.model.gz (file)                                                                                                                                                           
+    save(ok): . (dataset)                                                                                                                                                                                               
+    add(ok): models/abrupt/silver/05_02/slurm-10524535.out (file)                                                                                                                                                       
+    add(ok): models/abrupt/silver/05_02/slurm-job-10524535.env.json (file)                                                                                                                                              
+    add(ok): models/abrupt/silver/05_02/model_0.model.gz (file)                                                                                                                                                         
+    add(ok): models/abrupt/silver/05_02/model.scaler.gz (file)                                                                                                                                                          
+    save(ok): . (dataset)                                                                                                                                                                                               
+    finish(impossible): [Slurm job(s) for job 10524556 are not complete.Statuses: 10524556: FAILED]                                                                                                                     
+    finish(impossible): [Slurm job(s) for job 10524620 are not complete.Statuses: 10524620_0: COMPLETED, 10524620_1: COMPLETED, 10524620_2: TIMEOUT]
+    action summary:
+      add (ok: 7)
+      finish (impossible: 2)
+      save (ok: 2)
+
+To close the failed jobs:
+
+    datalad slurm-finish --close-failed-jobs
+
+    finish(ok): [Closing failed / cancelled jobs. Statuses: 10524556: FAILED]
+    finish(ok): [Closing failed / cancelled jobs. Statuses: 10524620_0: COMPLETED, 10524620_1: COMPLETED, 10524620_2: TIMEOUT]
+    action summary:
+    finish (ok: 2)
+
+Note that if any sub-job of an array job fails, that whole job is treated as a failed job. The user always has the option to manually commit the successful outputs if desired.
+
+The git history would then appear like so:
+
+    git log --oneline
+
+    a8e4aa6 (HEAD -> master) [DATALAD SLURM RUN] Slurm job 10524535: Completed
+    25067fe [DATALAD SLURM RUN] Slurm job 10524442: Completed
+
+With one particular entry looking like:
+
+    commit a8e4aa62519db3b5f63243cc925ee918984bf506 (HEAD -> master)
+    Author: Tim Callow <tim@notmyrealemail.com>
+    Date:   Tue Feb 18 09:31:47 2025 +0100
+
+        [DATALAD SLURM RUN] Slurm job 10524535: Completed
+    
+        === Do not change lines below ===
+        {
+         "chain": [],
+         "cmd": "sbatch submit_silver.slurm",
+         "commit_id": null,
+         "dsid": "61576cad-ea4f-4425-8f35-16b9955c9926",
+         "extra_inputs": [],
+         "inputs": [],
+         "outputs": [
+          "models/abrupt/silver",
+          "models/abrupt/silver/05_02/slurm-10524535.out",
+          "models/abrupt/silver/05_02/slurm-job-10524535.env.json"
+         ],
+         "pwd": ".",
+         "slurm_job_id": 10524535,
+         "slurm_outputs": [
+          "models/abrupt/silver/05_02/slurm-10524535.out",
+          "models/abrupt/silver/05_02/slurm-job-10524535.env.json"
+         ]
+        }
+        ^^^ Do not change lines above ^^^
+
+
+## Contributing
+
+The `datalad-slurm` extension is still in the very early stages of development. We welcome contributors and testers of the package. Please document any issues on GitHub and we will try to resolve them.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) if you are interested in internals or
 contributing to the project.
