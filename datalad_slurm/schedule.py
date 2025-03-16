@@ -219,6 +219,28 @@ class Schedule(Interface):
             will be installed for a dry run.""",
             constraints=EnsureChoice(None, "basic", "command"),
         ),
+        alt_dir=Parameter(
+            args=(
+                "-a",
+                "--alt-dir",
+            ),
+            dest="alt_dir",
+            metavar=("PATH"),
+            doc="""Provide an alternative directory (alt-dir) prefix where to 
+            execute the Slurm job. This needs to be outside of the repository.
+            The relative path of all inputs relative to the repository root 
+            will be copied to the corresponding relative directory below the alt-dir. 
+            Then the Datalad will cd (change dir) to alt_dir/realtive_dir where
+            relative dir is the current pwd relative to the repository root.
+            Then the job is scheduled there. In the end all output is moved 
+            (not copied) back to the relative path inside the reporitory, 
+            to be added and committed.
+            This allows to make the Slurm job run on a parallel filesystem
+            while the Datalad repository stays on a local filesystem like /tmp/ or
+            /scratch/. This reduced the metadata pressure on HPC filesystems.
+            """,
+        ),
+
         jobs=jobs_opt,
     )
     _params_[
@@ -242,6 +264,7 @@ class Schedule(Interface):
         message=None,
         check_outputs=True,
         dry_run=None,
+        alt_dir= None,
         jobs=None,
     ):
         for r in schedule_cmd(
@@ -254,6 +277,7 @@ class Schedule(Interface):
             message=message,
             check_outputs=check_outputs,
             dry_run=dry_run,
+            alt_dir=alt_dir,
             jobs=jobs,
         ):
             yield r
@@ -366,6 +390,7 @@ def schedule_cmd(
     message=None,
     check_outputs=True,
     dry_run=False,
+    alt_dir= None,
     jobs=None,
     explicit=True,
     extra_info=None,
@@ -647,7 +672,47 @@ def schedule_cmd(
         )
         return
 
-    cmd_exitcode, exc, slurm_job_id = _execute_slurm_command(cmd_expanded, pwd)
+    # if alt_dir given, check that it exists
+    if alt_dir:
+        if not op.isdir(alt_dir):
+            yield get_status_dict(
+                "slurm-schedule",
+                ds=ds,
+                status="error",
+                message=(f"Alternative job directory '{alt_dir}' doesn't exist"),
+            )
+            return
+
+    target_pwd= pwd
+    if alt_dir:
+        print(f"TODO add alt_dir steps before here with alt_dir={alt_dir}")
+        print(f"    - alter pwd here")
+        target_pwd= op.join(alt_dir,rel_pwd)
+        print(f"     pwd={pwd}")
+        print(f"     rel_pwd={rel_pwd}")
+        print(f"     target_pwd={target_pwd}")
+
+        print("    - copy all inputs to relative position under `alt_dir/` with `cp -r`")
+	    print("        - make sure to copy entire files, not links")
+
+        print("    inputs to copy:")
+        for i in globbed["inputs"]:
+            print(f"        {i} --> {target_pwd} ")
+
+        print("    do we need to create dirs for the copying?")
+        print("        maybe get_sub_paths() will help?")
+
+        command= "cp -r -L -u ... "
+        # ## run the copy command
+        # result = subprocess.run(
+        #     command, shell=True, capture_output=True, text=True, cwd=pwd
+        # )
+        # # Extract result from copy command
+        # stdout = result.stdout
+
+        print("TODO check error code from copying with alt_dir= ", alt_dir)
+
+    cmd_exitcode, exc, slurm_job_id = _execute_slurm_command(cmd_expanded, target_pwd)
     if not slurm_job_id:
         yield get_status_dict(
             "slurm-schedule",
@@ -657,6 +722,11 @@ def schedule_cmd(
                      "Check your submission script exists and is valid."),
         )
         return
+
+    if alt_dir:
+        print("TODO add alt_dir steps AFTER here -- is there anything t.b.d. here at all? with alt_dir= ", alt_dir)
+
+
     slurm_run_info["exit"] = cmd_exitcode
     # TODO: expand these paths
     slurm_outputs, slurm_env_file = get_slurm_output_files(slurm_job_id)
@@ -700,7 +770,7 @@ def schedule_cmd(
         status = "ok"
 
     status_ok = add_to_database(
-        ds, slurm_run_info, msg, expanded_specs["outputs"], locked_prefixes
+        ds, slurm_run_info, msg, expanded_specs["outputs"], locked_prefixes, alt_dir
     )
     if not status_ok:
         yield get_status_dict(
@@ -997,7 +1067,7 @@ def generate_array_job_names(job_id, job_task_id):
     return job_names
 
 
-def add_to_database(dset, slurm_run_info, message, outputs, prefixes):
+def add_to_database(dset, slurm_run_info, message, outputs, prefixes, alt_dir):
     """
     Add a `datalad schedule` command to an sqlite database.
 
@@ -1046,7 +1116,8 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes):
     extra_inputs TEXT CHECK (json_valid(extra_inputs)),
     outputs TEXT CHECK (json_valid(outputs)),
     slurm_outputs TEXT CHECK (json_valid(slurm_outputs)),
-    pwd TEXT
+    pwd TEXT,
+    alt_dir TEXT
     )
     """
     )
@@ -1078,7 +1149,8 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes):
     extra_inputs,
     outputs,
     slurm_outputs,
-    pwd)
+    pwd,
+    ald_dir)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
@@ -1092,6 +1164,7 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes):
             outputs_json,
             slurm_outputs_json,
             slurm_run_info["pwd"],
+            alt_dir # will this work if alt_dir==None ? or better alt_dir if alt_dir else ""?
         ),
     )
 
