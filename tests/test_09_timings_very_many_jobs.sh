@@ -26,8 +26,6 @@ if [[ -z $NUMOUTEXTRA ]] ; then
     NUMOUTEXTRA=0
 fi
 
-LIMITJOBS=500 ## max number of jobs to schedule
-
 echo "start"
 
 B=`dirname $0`
@@ -79,7 +77,7 @@ chmod u+x $TESTDIR/slurm.template.sh
 cd $TESTDIR
 echo "PWD "$PWD
 
-TARGETS=`seq 1 1000`
+TARGETS=`seq 1 10000`
 
 echo "Create jobs:"
 for i in $TARGETS ; do
@@ -132,19 +130,27 @@ for i in $TARGETS ; do
     echo -n $i" ">>timing_schedule.txt
     /usr/bin/time -f "%e" -o timing_schedule.txt -a datalad slurm-schedule -o $DIR.datalad $EXTRAOUT sbatch --chdir $DIR.datalad slurm.sh
 
-    sleep 0.1s
+    sleep 0.5s
 
     echo -n $i" ">>timing_slurm.txt
     /usr/bin/time -f "%e" -o timing_slurm.txt -a sbatch --chdir $DIR.slurm slurm.sh
 
-    sleep 0.1s
+    sleep 0.5s
 
     if [[ 0 == $M ]]; then
-        while [[ $LIMITJOBS < `squeue -u $USER | grep "DLtest09" | wc -l` ]] ; do
+        while [[ 100 -lt `squeue -u $USER | grep "DLtest09" | wc -l` ]] ; do
 
             echo "    ... wait for jobs to finish inbetween"
             sleep 30s
+
+            ## remove all with "launch failed requeued held"
+            for i in `squeue -u $USER | grep "launch failed requeued held" | awk '{print $1}'`; do
+                scancel $i
+            done
+
         done
+
+        echo "    ... continue with "`squeue -u $USER | grep "DLtest09" | wc -l`
     fi
 
     ## run this only every 100 rounds
@@ -155,16 +161,32 @@ for i in $TARGETS ; do
     #fi
 done
 
-scancel -n "DLtest09"
+echo "finished scheduling, now wait for all the jobs to complete" 
+
+while [[ 0 -lt `squeue -u $USER | grep "DLtest09" | wc -l` ]] ; do
+
+    echo "    ... wait for jobs to finish at the end"
+    sleep 30s
+
+    ## remove all with "launch failed requeued held"
+    for i in `squeue -u $USER | grep "launch failed requeued held" | awk '{print $1}'`; do
+        scancel $i
+    done
+
+done
 
 echo "done waiting" 
 
-# for the benchmarking of `datalad slurm-schedule` don't call `datalad slurm-finish` because it takes very long
-exit 0
+echo "get all job ids"
+/usr/bin/time -f "%e" -o timing_finish_list.txt -a datalad slurm-finish --list-open-jobs | tee list_of_jobs.txt
+
 
 echo "finishing completed jobs:"
-/usr/bin/time -f "%e" -o timing_finish.txt -a datalad slurm-finish
+num=0
+for id in `cat list_of_jobs.txt | grep COMPLETED  |awk '{print $1}'`; do 
 
+    echo -n $num" ">>timing_finish.txt
+    /usr/bin/time -f "%e" -o timing_finish.txt -a datalad slurm-finish --slurm-job-id $id
 
-
-
+    let num=num+1
+done
