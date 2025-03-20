@@ -156,6 +156,29 @@ class Reschedule(Interface):
             is not 'Completed'. By default, these are ignored in a reschedule.""",
         ),        
         assume_ready=reschedule_assume_ready_opt,
+        alt_dir=Parameter(
+            args=(
+                "-a",
+                "--alt-dir",
+            ),
+            dest="alt_dir",
+            metavar=("PATH"),
+            doc="""Provide an alternative directory (alt-dir) prefix where to 
+            execute the Slurm job. This needs to be outside of the repository.
+            The relative path of all inputs relative to the repository root 
+            will be copied to the corresponding relative directory below the alt-dir. 
+            Then the Datalad will cd (change dir) to alt_dir/realtive_dir where
+            relative dir is the current pwd relative to the repository root.
+            Then the job is scheduled there. In the end all output is moved 
+            (not copied) back to the relative path inside the reporitory, 
+            to be added and committed.
+            This allows to make the Slurm job run on a parallel filesystem
+            while the Datalad repository stays on a local filesystem like /tmp/ or
+            /scratch/. This reduced the metadata pressure on HPC filesystems.
+            Note that slurm-reschedule does not inherit this from the original job
+            but does it if and only if slurm-reschedule is called with --alt-dir.
+            """,
+        ),
         jobs=jobs_opt,
     )
 
@@ -185,6 +208,7 @@ class Reschedule(Interface):
         report=False,
         with_failed_jobs=False,
         assume_ready=None,
+        alt_dir= None,
         jobs=None,
     ):
         ds = require_dataset(
@@ -232,9 +256,8 @@ class Reschedule(Interface):
             handler = _report
         else:
             handler = partial(
-                _rerun, assume_ready=assume_ready, explicit=True, jobs=jobs
+                _rerun, assume_ready=assume_ready, explicit=True, alt_dir=alt_dir, jobs=jobs
             )
-
         for res in handler(ds, results):
             yield res
 
@@ -348,7 +371,7 @@ def _rerun_as_results(dset, revrange, since, message, rev_branch, with_failed_jo
     # now drop the results which did not run successfully
     if not with_failed_jobs:
         results = [result for result in results if not result["job_failed"]]
-    
+
     if not results:
         yield get_status_dict(
             "slurm-reschedule",
@@ -390,7 +413,7 @@ def _mark_nonrun_result(result, which):
     return result
 
 
-def _rerun(dset, results, assume_ready=None, explicit=True, jobs=None):
+def _rerun(dset, results, assume_ready=None, explicit=True, alt_dir=None, jobs=None):
     """
     Rerun a series of actions on a dataset.
 
@@ -417,6 +440,7 @@ def _rerun(dset, results, assume_ready=None, explicit=True, jobs=None):
     This function handles various rerun actions such as 'checkout', 'merge', 'skip-or-pick', and 'run'.
     It maintains a map from original commit hashes to new commit hashes created during the rerun process.
     """
+
     ds_repo = dset.repo
     # Keep a map from an original hexsha to a new hexsha created by the rerun
     # (i.e. a reran, cherry-picked, or merged commit).
@@ -548,6 +572,7 @@ def _rerun(dset, results, assume_ready=None, explicit=True, jobs=None):
 
             message = res["rerun_message"] or res["run_message"]
             message = check_job_pattern(message)
+
             for r in schedule_cmd(
                 slurm_run_info["cmd"],
                 dataset=dset,
@@ -558,6 +583,7 @@ def _rerun(dset, results, assume_ready=None, explicit=True, jobs=None):
                 explicit=explicit,
                 rerun_outputs=auto_outputs,
                 message=message,
+                alt_dir=alt_dir,
                 jobs=jobs,
                 reslurm_run_info=slurm_run_info,
             ):
