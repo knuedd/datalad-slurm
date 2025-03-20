@@ -308,44 +308,27 @@ def finish_cmd(
         )
         return
 
-
-    print("    ppp: ", results)
-    for r in results:
-        print("        ", r, " --> ", results[r] )
-    print()
-    print("    COPY BACK FILES")
-    print()
     # check if there was an alt_dir specified at schedule or reschedule time
     if 'slurm_run_info' in results and 'alt_dir' in results['slurm_run_info']:
-        if results['slurm_run_info']['alt_dir']:
+        alt_dir= results['slurm_run_info']['alt_dir'] 
+        if alt_dir: # not '' and not None
 
-            old_pwd= results['slurm_run_info']['pwd']
-            print("    old_pwd= ", old_pwd)
-            alt_dir= results['slurm_run_info']['alt_dir'] # not '' and not None
-            print("    alt_dir= ", alt_dir)
-            inputs= results['slurm_run_info']['inputs']
-            print("    inputs= ", inputs)
-            outputs= results['slurm_run_info']['outputs'] + results['slurm_run_info']['slurm_outputs']
-            print("    outputs= ", outputs)
-
-            for o in outputs:
+            for o in results['slurm_run_info']['outputs'] + results['slurm_run_info']['slurm_outputs']:
                 dir= op.dirname(o)
-                command=f"cp -v -r -L -u {alt_dir}/{o} {dir}/"
-                print("        run command ", command, " ... run from ", ds_path)
+                command=f"cp -r -L -u {alt_dir}/{o} {dir}/"
+                print(f"        copy back from alternative dir: '{command}' in '{ds_path}'")
                 result = subprocess.run(
                     command, shell=True, capture_output=True, text=True, cwd=ds_path # always run from the root of the repository
                 )
                 # Extract result from copy command
                 #stdout = result.stdout
-                print("            result: ", result.stdout)
-
-    print("    DONE COPYING?")
+                #print("            result: ", result.stdout)
 
 
     run_message = results["run_message"]
     slurm_run_info = results["slurm_run_info"]
     # set unuion of outputs from both submission and completion
-    outputs_to_save = list( set( ensure_list(outputs) + ensure_list(slurm_run_info["outputs"]) ) )
+    outputs_to_save = list( set( ensure_list(slurm_run_info["outputs"]) + ensure_list(slurm_run_info["slurm_outputs"]) ) )
 
     # should throw an error if user doesn't specify outputs or directory
     if not outputs_to_save:
@@ -468,10 +451,6 @@ def extract_from_db(dset, slurm_job_id):
     # Fetch the record
     record = cur.fetchone()
 
-    print("    FINISH FINISH FINISH FINISH ")
-
-    print("    iii: ", record)
-
     if not record:
         return None
 
@@ -480,28 +459,17 @@ def extract_from_db(dset, slurm_job_id):
 
     # extract as dictionary
     slurm_run_info = dict(zip(column_names, record))
-    print("    jjj: ", slurm_run_info)
 
     # convert json columns to list
     json_columns = ["chain", "inputs", "extra_inputs", "outputs", "slurm_outputs"]
 
-    print("    kkk: ", json_columns)
-
     for column in json_columns:
-        print("        kk ", column )
         slurm_run_info[column] = json.loads(slurm_run_info[column])
-
-    print("    mmm")
 
     message = slurm_run_info["message"]
     del slurm_run_info["message"]
 
-    print("    nnn")
-
     res = {"run_message": message, "slurm_run_info": slurm_run_info}
-
-    print("    ppp")
-
     return dict(res, status="ok")
 
 
