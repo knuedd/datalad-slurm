@@ -32,7 +32,9 @@ fi
 A=$2
 
 echo "repository in $D and alternative directory in $A"
-
+A1=$A/foo/
+A2=$A/bar/
+mkdir -p $A1 $A2
 
 ## create a test repo
 
@@ -80,7 +82,9 @@ chmod u+x $TESTDIR/slurm.template.sh
 
 cd $TESTDIR
 
-TARGETS=`seq 17 17`
+## schedule and run 2 jobs in the repository
+
+TARGETS=`seq 17 18`
 
 for i in $TARGETS ; do
 
@@ -107,26 +111,55 @@ for i in $TARGETS ; do
     DIR="test_13_output_dir_"$i
 
     cd $DIR
-    datalad slurm-schedule -i slurm.sh -i aaa.txt -i bbb/ccc.txt -i ddd/eee/fff.txt -i ggg/hhh/iii -i kkk/lll/mmm/ -o output_test.txt -o output_test.txt.bz2 --alt-dir $A sbatch slurm.sh
+    datalad slurm-schedule -i slurm.sh -i aaa.txt -i bbb/ccc.txt -i ddd/eee/fff.txt -i ggg/hhh/iii -i kkk/lll/mmm/ -o output_test.txt -o output_test.txt.bz2 --alt-dir $A1 sbatch slurm.sh
     cd ..
 
 done
 
+sleep 3s
 while [[ 0 != `squeue -u $USER | grep "DLtest13" | wc -l` ]] ; do
 
     echo "    ... wait for jobs to finish"
-    sleep 1m
+    sleep 30s
 done
 
 datalad slurm-finish --list-open-jobs
+echo ""
 
 echo "finishing completed jobs:"
 echo "    "$PWD
 datalad slurm-finish
 
-#echo " ### git log in this repo ### "
-#echo ""
-#git log
+sleep 3s
 
+echo "    STATUS"
+datalad status
+
+## now reschedule the jobs
+
+# reschedule the later job with an different --alt-dir
+COMMITID=`git log -2 --oneline|head -1|awk '{print $1}'`
+datalad slurm-reschedule $COMMITID --alt-dir $A2
+
+# reschedule the earlier of the two jobs in-place, that means without a --alt-dir
+COMMITID=`git log -2 --oneline|tail -1|awk '{print $1}'`
+datalad slurm-reschedule $COMMITID
+
+sleep 3s
+while [[ 0 != `squeue -u $USER | grep "DLtest13" | wc -l` ]] ; do
+
+    echo "    ... wait for rescheduled jobs to finish"
+    sleep 1m
+done
+
+echo "    STATUS"
+datalad status
+
+datalad slurm-finish --list-open-jobs
+echo ""
+
+echo "finishing completed jobs:"
+echo "    "$PWD
+datalad slurm-finish
 
 
