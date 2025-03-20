@@ -484,7 +484,14 @@ def schedule_cmd(
         )
         return
 
-    specs["outputs"] = [output.rstrip("/") for output in specs["outputs"]]
+    # make all outputs relative to the repository root. 
+    # If the job was scheduled from a subdir inside the repo, 
+    # this needs to be prefixed
+    rel_path= rel=op.relpath(Path.cwd(),ds_path)
+
+    print(" REL REL REL ", rel_path)
+
+    specs["outputs"] = [ op.join(rel_path,output.rstrip("/")) for output in specs["outputs"]]
 
     # skip for callers that already take care of this
     if not (skip_dirtycheck or reslurm_run_info):
@@ -693,15 +700,39 @@ def schedule_cmd(
         print(f"     target_pwd={target_pwd}")
 
         print("    - copy all inputs to relative position under `alt_dir/` with `cp -r`")
-	    print("        - make sure to copy entire files, not links")
+        print("        - make sure to copy entire files, not links")
 
         print("    inputs to copy:")
-        for i in globbed["inputs"]:
-            print(f"        {i} --> {target_pwd} ")
+        print("        ", inputs)
+        print("AAAAAA")
+        if inputs:
+            for i in inputs:
+                print(f"        {i} --> {target_pwd} ")
+
+                dirname= op.dirname( i.rstrip("/") ) # remove trailing '/', otherwise dirname() gives the wrong result
+                print(f"        dirname: ", dirname)
+                print(f"            ... need mkdir -p {dirname}")
+                source_path= op.join(pwd,i)
+                target_dir= op.join(alt_dir,rel_pwd,dirname)
+                os.makedirs( target_dir, exist_ok=True)
+
+                command=f"cp -r -L -u {source_path} {target_dir}/"
+                print("        run command ", command)
+                result = subprocess.run(
+                    command, shell=True, capture_output=True, text=True, cwd=pwd
+                )
+                # Extract result from copy command
+                #stdout = result.stdout
+                print("            result: ", result.stdout)
+
+        print("        ", extra_inputs)
+        if extra_inputs:
+            for i in extra_inputs:
+                print(f"        {i} --> {target_pwd} ")
 
         print("    do we need to create dirs for the copying?")
         print("        maybe get_sub_paths() will help?")
-
+        print("")
         command= "cp -r -L -u ... "
         # ## run the copy command
         # result = subprocess.run(
@@ -712,7 +743,9 @@ def schedule_cmd(
 
         print("TODO check error code from copying with alt_dir= ", alt_dir)
 
-    cmd_exitcode, exc, slurm_job_id = _execute_slurm_command(cmd_expanded, target_pwd)
+    print(f"    SCHEDULE from pwd {pwd} or from target_pwd {target_pwd}?")
+
+    cmd_exitcode, exc, slurm_job_id = _execute_slurm_command(cmd_expanded, target_pwd) # later target_pwd here
     if not slurm_job_id:
         yield get_status_dict(
             "slurm-schedule",
@@ -729,9 +762,9 @@ def schedule_cmd(
 
     slurm_run_info["exit"] = cmd_exitcode
     # TODO: expand these paths
-    slurm_outputs, slurm_env_file = get_slurm_output_files(slurm_job_id)
-    slurm_run_info["outputs"].extend(slurm_outputs)
-    slurm_run_info["outputs"].append(slurm_env_file)
+    slurm_outputs, slurm_env_file = get_slurm_output_files(ds_path,slurm_job_id,alt_dir)
+    #slurm_run_info["outputs"].extend(slurm_outputs) ## TODO don't have slurm outputs twice, in "outputs" and in "slurm_outputs"
+    #slurm_run_info["outputs"].append(slurm_env_file)
     slurm_run_info["slurm_outputs"] = slurm_outputs
     slurm_run_info["slurm_outputs"].append(slurm_env_file)
 
@@ -899,7 +932,7 @@ def get_sub_paths(paths):
     return sorted(list(all_sub_paths))
 
 
-def get_slurm_output_files(job_id):
+def get_slurm_output_files(ds_root, job_id, alt_dir=None):
     """
     Get the relative paths to StdOut and StdErr files for a Slurm job.
 
@@ -966,6 +999,20 @@ def get_slurm_output_files(job_id):
         if not stdout_path or not stderr_path:
             raise ValueError("Could not find StdOut or StdErr paths in scontrol output")
         cwd = Path.cwd()
+        if alt_dir:
+            print(f"    get_slurm_output_files(): ")
+            print(f"    get_slurm_output_files(): cwd= {cwd}")
+            print(f"    get_slurm_output_files(): ds_root= {ds_root}")
+            # if there is an alt_dir, the following steps are needed:
+            # rel= cwd <--> repo_root
+            # cwd= alt_dir + rel
+            rel=op.relpath(cwd,ds_root)
+            #cwd=op.join(alt_dir, rel)
+            cwd=alt_dir
+            print(f"    get_slurm_output_files(): rel= {rel}")
+            print(f"    get_slurm_output_files(): alt_dir= {alt_dir}")
+            print(f"    get_slurm_output_files(): new cwd= {cwd}")
+
         stdout_path = Path(stdout_path)
         stderr_path = Path(stderr_path)
 
@@ -1137,6 +1184,8 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes, alt_dir):
     # convert chain to json
     chain_json = json.dumps(slurm_run_info["chain"])
 
+    print("KKKKKK")
+
     # add the most recent schedule command to the table
     cur.execute(
         """
@@ -1150,8 +1199,8 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes, alt_dir):
     outputs,
     slurm_outputs,
     pwd,
-    ald_dir)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    alt_dir)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             slurm_run_info["slurm_job_id"],
@@ -1164,9 +1213,11 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes, alt_dir):
             outputs_json,
             slurm_outputs_json,
             slurm_run_info["pwd"],
-            alt_dir # will this work if alt_dir==None ? or better alt_dir if alt_dir else ""?
+            alt_dir if alt_dir else ""
         ),
     )
+
+    print("LLLLLL")
 
     # now create the tables with the locked_prefixes and locked_names
     cur.execute(
@@ -1177,6 +1228,8 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes, alt_dir):
     """
     )
 
+    print("MMMMMM")
+
     cur.execute(
         """
     CREATE TABLE IF NOT EXISTS locked_names (
@@ -1184,6 +1237,8 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes, alt_dir):
     name TEXT )
     """
     )
+
+    print("NNNNNN")
 
     for output in outputs:
         cur.execute(
@@ -1195,6 +1250,8 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes, alt_dir):
             (slurm_run_info["slurm_job_id"], output.rstrip("/")),
         )
 
+    print("PPPPPP")
+
     if prefixes:
         for prefix in prefixes:
             cur.execute(
@@ -1205,6 +1262,8 @@ def add_to_database(dset, slurm_run_info, message, outputs, prefixes, alt_dir):
             """,
                 (slurm_run_info["slurm_job_id"], prefix),
             )
+
+    print("QQQQQQ")
 
     # save and close
     con.commit()
