@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-set -e # continue on errors
+# ERRORS
+set -e # stop on errors
 
 # Test datalad 'slurm-schedule' and 'slurm-finish --list-open-jobs' and 'slurm-finish' functionality
 #   - measure how long they take with growing number of currently scheduled jobs
@@ -40,14 +41,15 @@ fi
 
 
 # adjust the number of jobs per type here
-TARGETS=`seq 1 11000`
+TARGETS=`seq 1 10000`
 
 
 DT="datalad-slurm-test-09_"`date -Is|tr -d ":"`
-echo "start "$DT
+echo "START "$DT
 
 HERE=$HERE/$DT
 mkdir -p $HERE
+
 
 DA=$DA/$DT
 mkdir -p $DA
@@ -55,12 +57,15 @@ mkdir -p $DA
 ## create test repos/dirs
 
 TESTDIR_D="datalad-normal-repo"
+echo "CREATE NORMAL: $HERE/$TESTDIR_D"
 datalad create -c text2git $HERE/$TESTDIR_D
 
 TESTDIR_S="slurm-alone-dir"
+echo "CREATE SLURM: $HERE/$TESTDIR_S"
 mkdir -p $HERE/$TESTDIR_S
 
 TESTDIR_L="datalad-alt-dir"
+echo "CREATE ALTDIR: $DA/$TESTDIR_L    and     $HERE/$TESTDIR_L"
 datalad create -c text2git $DA/$TESTDIR_L
 mkdir -p $HERE/$TESTDIR_L
 
@@ -92,6 +97,10 @@ for i in \$(seq 1 20); do
 done
 # simulate some binary output which will become an annex file
 bzip2 -k \$OUTPUT
+# simulate addl. output files according to first command line parameter \$1
+for i in \$(seq \$1); do
+    md5sum output_test* >output_test.hash.\$i
+done
 echo "ended"
 EOF
 
@@ -123,23 +132,48 @@ for i in $TARGETS ; do
     cp $TESTDIR_S/slurm.template.sh $TESTDIR_S/$DIR/slurm.sh
     cp $DA/$TESTDIR_L/slurm.template.sh $DA/$TESTDIR_L/$DIR/slurm.sh
 
+    MM=$(($i%300))
+    # do 'datalad save from time to time in between'
+    if [[ 0 == $MM ]]; then
+
+        cd $TESTDIR_D
+        echo "################################################################"
+        echo "PWD "$PWD
+        echo datalad save -m "add test job dirs and scripts, intermediate commit"
+        datalad save -m "add test job dirs and scripts, intermediate commit"
+        echo "################################################################"
+        cd $HERE
+
+        cd $DA/$TESTDIR_L
+        echo "################################################################"
+        echo "PWD "$PWD
+        echo datalad save -m "add test job dirs and scripts, intermediate commit"
+        datalad save -m "add test job dirs and scripts, intermediate commit"
+        echo "################################################################"
+        cd $HERE
+    fi
+
 done
 
 cd $TESTDIR_D
 echo "################################################################"
 echo "PWD "$PWD
-echo datalad save -m "add test job dirs and scripts"
-datalad save -m "add test job dirs and scripts"
+echo datalad save -m "add test job dirs and scripts, final commit"
+datalad save -m "add test job dirs and scripts, final commit"
 echo "################################################################"
 cd $HERE
 
 cd $DA/$TESTDIR_L
 echo "################################################################"
 echo "PWD "$PWD
-echo datalad save -m "add test job dirs and scripts"
-datalad save -m "add test job dirs and scripts"
+echo datalad save -m "add test job dirs and scripts, final commit"
+datalad save -m "add test job dirs and scripts, final commit"
 echo "################################################################"
 cd $HERE
+
+
+# ERRORS
+set +e # continue on errors because sometime Slurm will fail to report on a just scheduled job
 
 echo "Schedule jobs:"
 echo "num_jobs time">timing_schedule.txt
@@ -153,16 +187,16 @@ for i in $TARGETS ; do
     EXTRAOUT=""
     for e in `seq $NUMOUTEXTRA`; do
 
-        EXTRAOUT=$EXTRAOUT" -o IDONTEXIST$e/test_09_output_dir_$i/test$e.txt"
+        EXTRAOUT=$EXTRAOUT" -o $DIR/output_test.hash.$e"
     done
 
 
     # regular datalad schedule
 
     cd $TESTDIR_D
-    echo "    running: datalad slurm-schedule -i $DIR/slurm.sh -o $DIR $EXTRAOUT sbatch --chdir $DIR slurm.sh"
+    echo "NORMAL: datalad slurm-schedule -i $DIR/slurm.sh -o $DIR $EXTRAOUT sbatch --chdir $DIR slurm.sh"
     echo -n $i" ">>../timing_schedule.txt
-    /usr/bin/time -f "%e" -o ../timing_schedule.txt -a datalad slurm-schedule -i $DIR/slurm.sh -o $DIR $EXTRAOUT sbatch --chdir $DIR slurm.sh
+    /usr/bin/time -f "%e" -o ../timing_schedule.txt -a datalad slurm-schedule -i $DIR/slurm.sh -o $DIR/output_test.txt -o $DIR/output_test.txt.bz2 $EXTRAOUT sbatch --chdir $DIR slurm.sh $NUMOUTEXTRA
     cd $HERE
 
     sleep 0.5s
@@ -171,8 +205,9 @@ for i in $TARGETS ; do
     # basic slurm submit
 
     cd $TESTDIR_S
+    echo "SLURM ONLY: sbatch --chdir $DIR slurm.sh $NUMOUTEXTRA"
     echo -n $i" ">>../timing_slurm.txt
-    /usr/bin/time -f "%e" -o ../timing_slurm.txt -a sbatch --chdir $DIR slurm.sh
+    /usr/bin/time -f "%e" -o ../timing_slurm.txt -a sbatch --chdir $DIR slurm.sh $NUMOUTEXTRA
     cd $HERE
 
     sleep 0.5s
@@ -181,9 +216,9 @@ for i in $TARGETS ; do
     # datalad schedule with --alt-dir
 
     cd $DA/$TESTDIR_L
-    echo "    running: datalad slurm-schedule -i $DIR/slurm.sh -o $DIR $EXTRAOUT --alt-dir $HERE/$TESTDIR_L sbatch --chdir $DIR slurm.sh"
+    echo "ALTDIR: datalad slurm-schedule -i $DIR/slurm.sh -o $DIR $EXTRAOUT --alt-dir $HERE/$TESTDIR_L sbatch --chdir $DIR slurm.sh"
     echo -n $i" ">>$HERE/timing_schedule_alt.txt
-    /usr/bin/time -f "%e" -o $HERE/timing_schedule_alt.txt -a datalad slurm-schedule -i $DIR/slurm.sh -o $DIR $EXTRAOUT --alt-dir $HERE/$TESTDIR_L sbatch --chdir $DIR slurm.sh
+    /usr/bin/time -f "%e" -o $HERE/timing_schedule_alt.txt -a datalad slurm-schedule -i $DIR/slurm.sh -o $DIR/output_test.txt -o $DIR/output_test.txt.bz2 $EXTRAOUT --alt-dir $HERE/$TESTDIR_L sbatch --chdir $DIR slurm.sh $NUMOUTEXTRA
     cd $HERE
 
     sleep 0.5s
@@ -195,8 +230,11 @@ for i in $TARGETS ; do
             echo "    ... wait for jobs to finish inbetween"
             sleep 30s
 
-            ## remove all with "launch failed requeued held"
+            ## remove all with "launch failed requeued held" or "JobHeldAdmin"
             for i in `squeue -u $USER | grep "launch failed requeued held" | awk '{print $1}'`; do
+                scancel $i
+            done
+            for i in `squeue -u $USER | grep "JobHeldAdmin" | awk '{print $1}'`; do
                 scancel $i
             done
 
@@ -213,8 +251,11 @@ while [[ 0 -lt `squeue -u $USER | grep "DLtest09" | wc -l` ]] ; do
     echo "    ... wait for jobs to finish at the end"
     sleep 30s
 
-    ## remove all with "launch failed requeued held"
+    ## remove all with "launch failed requeued held" or "JobHeldAdmin"
     for i in `squeue -u $USER | grep "launch failed requeued held" | awk '{print $1}'`; do
+        scancel $i
+    done
+    for i in `squeue -u $USER | grep "JobHeldAdmin" | awk '{print $1}'`; do
         scancel $i
     done
 
@@ -223,36 +264,23 @@ done
 echo "done waiting" 
 
 
-## finsih all jobs in $TESTDIR_D
-
-cd $TESTDIR_D
-
-echo "get all job ids"
-/usr/bin/time -f "%e" -o ../timing_finish_list.txt -a datalad slurm-finish --list-open-jobs | tee $HERE/list_of_jobs_normal.txt
-
-
-echo "finishing completed jobs:"
-echo "num_jobs time">../timing_finish.txt
-num=0
-for id in `cat $HERE/list_of_jobs_normal.txt | grep COMPLETED  |awk '{print $1}'`; do 
-
-    echo -n $num" ">>../timing_finish.txt
-    /usr/bin/time -f "%e" -o ../timing_finish.txt -a datalad slurm-finish --slurm-job-id $id
-
-    let num=num+1
-done
-
-cd $HERE
-
-
-## finsih all jobs in $TESTDIR_L
+## list all jobs in $TESTDIR_L
 
 cd $DA/$TESTDIR_L
-
 echo "get all job ids"
 /usr/bin/time -f "%e" -o $HERE/timing_finish_list_alt.txt -a datalad slurm-finish --list-open-jobs | tee $HERE/list_of_jobs_alt.txt
+cd $HERE
 
+## list all jobs in $TESTDIR_D
 
+cd $TESTDIR_D
+echo "get all job ids"
+/usr/bin/time -f "%e" -o ../timing_finish_list.txt -a datalad slurm-finish --list-open-jobs | tee $HERE/list_of_jobs_normal.txt
+cd $HERE
+
+## finish all jobs in $TESTDIR_L
+
+cd $DA/$TESTDIR_L
 echo "finishing completed jobs:"
 echo "num_jobs time">$HERE/timing_finish_alt.txt
 num=0
@@ -263,8 +291,24 @@ for id in `cat $HERE/list_of_jobs_alt.txt | grep COMPLETED  |awk '{print $1}'`; 
 
     let num=num+1
 done
-
 cd $HERE
+
+
+## finish all jobs in $TESTDIR_D
+
+cd $TESTDIR_D
+echo "finishing completed jobs:"
+echo "num_jobs time">../timing_finish.txt
+num=0
+for id in `cat $HERE/list_of_jobs_normal.txt | grep COMPLETED  |awk '{print $1}'`; do 
+
+    echo -n $num" ">>../timing_finish.txt
+    /usr/bin/time -f "%e" -o ../timing_finish.txt -a datalad slurm-finish --slurm-job-id $id
+
+    let num=num+1
+done
+cd $HERE
+
 
 echo ""
 echo "done"
