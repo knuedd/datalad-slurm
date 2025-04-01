@@ -233,7 +233,7 @@ class Schedule(Interface):
             Then the Datalad will cd (change dir) to alt_dir/realtive_dir where
             relative dir is the current pwd relative to the repository root.
             Then the job is scheduled there. In the end all output is moved 
-            (not copied) back to the relative path inside the reporitory, 
+            (not copied) back to the relative path inside the repository, 
             to be added and committed.
             This allows to make the Slurm job run on a parallel filesystem
             while the Datalad repository stays on a local filesystem like /tmp/ or
