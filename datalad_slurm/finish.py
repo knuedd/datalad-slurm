@@ -289,6 +289,11 @@ def finish_cmd(
         )
         return
 
+    ds = require_dataset(
+        dataset, check_installed=True, purpose="track command outcomes"
+    )
+    ds_path = ds.path
+
     # if committing failed jobs, close_failed_jobs must be set to True
     if commit_failed_jobs:
         close_failed_jobs = True
@@ -303,10 +308,27 @@ def finish_cmd(
         )
         return
 
+    # check if there was an alt_dir specified at schedule or reschedule time
+    if 'slurm_run_info' in results and 'alt_dir' in results['slurm_run_info']:
+        alt_dir= results['slurm_run_info']['alt_dir'] 
+        if alt_dir: # not '' and not None
+
+            for o in results['slurm_run_info']['outputs'] + results['slurm_run_info']['slurm_outputs']:
+                dir= op.dirname(o)
+                command=f"cp -r -L -u {alt_dir}/{o} {dir}/"
+                print(f"        copy back from alternative dir: '{command}' in '{ds_path}'")
+                result = subprocess.run(
+                    command, shell=True, capture_output=True, text=True, cwd=ds_path # always run from the root of the repository
+                )
+                # Extract result from copy command
+                #stdout = result.stdout
+                #print("            result: ", result.stdout)
+
+
     run_message = results["run_message"]
     slurm_run_info = results["slurm_run_info"]
-    # concatenate outputs from both submission and completion
-    outputs_to_save = ensure_list(outputs) + ensure_list(slurm_run_info["outputs"])
+    # set unuion of outputs from both submission and completion
+    outputs_to_save = list( set( ensure_list(slurm_run_info["outputs"]) + ensure_list(slurm_run_info["slurm_outputs"]) ) )
 
     # should throw an error if user doesn't specify outputs or directory
     if not outputs_to_save:
@@ -448,7 +470,6 @@ def extract_from_db(dset, slurm_job_id):
     del slurm_run_info["message"]
 
     res = {"run_message": message, "slurm_run_info": slurm_run_info}
-
     return dict(res, status="ok")
 
 
