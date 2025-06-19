@@ -3,79 +3,145 @@
 # ERRORS
 set -e # stop on errors
 
-# Test datalad **without** 'slurm-schedule' and 'slurm-finish' functionality. 
-# Only a loop of file creation and comitts to confirm the hypothesis that git 
-# on parallel file systems is the source of long delays once the repository is 
-# large enough in terms of number of files.
+# Test datalad or git **without** 'slurm-schedule' and 'slurm-finish' functionality. 
+# 
+# Always create a DataLad repository, then do a loop of file creation and 
+# comitts to confirm the hypothesis that git on parallel file systems is the 
+# source of long delays once the repository is large enough in terms of number of files.
 #
 # Expected results: should run without any errors
 
-# necessary argument for the directory where the experiment repository will be created inside
+# necessary argument: result directory where timings and metadata will be stored under
 if [[ -z $1 ]] ; then
 
-    echo "no temporary directory for this test given, abort"
+    echo "no result directory given, abort"
     echo ""
-    echo "... call as $0 <dir>"
+    echo "... call as $0 <result-dir> <temp-dir> [<num-files-per-step>] [<size-per-file>] [<num-iterations>] [datalad|git]"
+    echo ""
 
     exit -1
 fi
-HERE=$1
+RESULTS=`readlink -f $1`
+echo "Results dir "$RESULTS
 
-# optionmal second argument for how many files per commit should be used, default is 1
-NUMFILES=$2
+# necessary argument: the directory where the experiment repository will be created inside
+if [[ -z $2 ]] ; then
+
+    echo "no temporary directory for this test given, abort"
+    echo ""
+    echo "... call as $0 <result-dir> <temp-dir> [<num-files-per-step>] [<size-per-file>] [<num-iterations>] [datalad|git]"
+    echo ""
+
+    exit -1
+fi
+REPOS=`readlink -f $2`
+echo "Repos dir "$REPOS
+
+# optional argument for how many files per commit should be used, default is 1
+NUMFILES=$3
 if [[ -z $NUMFILES ]] ; then
 
     NUMFILES=1
 fi
 
-# optionmal second argument for how many files per commit should be used, default is 1
-FILESIZE=$3
+# optional argument for how many files per commit should be used, default is 1K
+FILESIZE=$4
 if [[ -z $FILESIZE ]] ; then
 
-    FILESIZE=100
+    FILESIZE=1K
+fi
+
+# optional argument for how many files per commit should be used, default is 1K
+LOOP=$5
+if [[ -z $LOOP ]] ; then
+
+    LOOP=100
+fi
+
+# optional argument for how many files per commit should be used, default is 1K
+CMD=$6
+if [[ -z $CMD ]] ; then
+
+    CMD="datalad save"
+
+elif [[ "git" == $CMD ]] ; then
+
+    CMD="git addcommit"
+
+elif [[ "git commit" == $CMD ]] ; then
+
+    CMD="git addcommit"
+
+elif [[ "datalad" == $CMD ]] ; then
+
+    CMD="datalad save"
+
+elif [[ "datalad save" == $CMD ]] ; then
+
+    CMD="datalad save"
+
+else
+
+    echo "Wrong command specified, use one of 'git' | ' git commit' | 'datalad' | 'datalad save'"
+    exit -2
 fi
 
 
 # adjust the number of loop steps
-TARGETS=`seq 1 10000`
-
-
-DT="datalad-slurm-test-14_"`date -Is|tr -d ":"`
-echo "START "$DT
-
-HERE=$HERE/$DT
-mkdir -p $HERE
+TARGETS=`seq $LOOP`
 
 
 ## create test repos/dirs
 
-TESTDIR="repository.datalad"
-echo "CREATE REPO: $HERE/$TESTDIR"
-datalad create -c text2git $HERE/$TESTDIR
-
+DT="datalad-slurm-test-14_"`date -Is|tr -d ":"`
+mkdir -p $RESULTS/$DT $REPOS/$DT
+REPO=$REPOS/$DT/"repository.datalad"
+datalad create -c text2git $REPO
 
 ### from here on we are inside the repository
-cd $HERE/$TESTDIR
+cd $REPO
+
+# create local alias so that we can add and commit with one command
+git config  alias.addcommit '!git add -A && git commit'
+
+HOST=`hostname`
+FILESYSTEM=`df -h -T $REPO | tail -n 1 | awk '{print $2}'`
+
+# Create JSON string with HOST and CMD
+JSON_PAYLOAD=$( jq -n \
+    --arg hostname "$HOST" \
+    --arg cmd "$CMD" \
+    --arg cmdline "$*" \
+    --arg repo "$REPO" \
+    --arg filesystem "$FILESYSTEM" \
+    --arg numfiles "$NUMFILES" \
+    --arg filesize "$FILESIZE" \
+    '{hostname: $hostname, test_command: $cmd, commandline: $cmdline, repo: $repo, filesystem: $filesystem, numfiles: $numfiles, filesize: $filesize}' )
+
+# Save JSON to a file
+echo "$JSON_PAYLOAD" >$RESULTS/$DT/metadata.json
+
 
 echo ""
 echo "start"
 echo ""
 
-echo "num_jobs time">../timing.txt
-echo $0 $* >../experiment.txt
-hostname >../hostname.txt
+echo "num_jobs time">$RESULTS/$DT/timing.txt
 
-# one loop:
+
+# every loop:
 #       - create a subdir == one dataset
 #       - add some files inside
 #       - commit via "datalad save" or via "git commit"
 #
 for i in $TARGETS ; do
 
+    echo -n $i" " >>$RESULTS/$DT/timing.txt
+
     # make a directory hierarchy instead of too many directories
     M=$(($i%100))
 
-    echo $M/$i
+    echo $M $i
 
     DIR="$M/$i"
     mkdir -p $DIR
@@ -90,8 +156,18 @@ for i in $TARGETS ; do
         fi
     done
 
-    /usr/bin/time -f "%e" -o ../timing.txt -a datalad save $DIR -m "commit dataset $i"
+
+    /usr/bin/time -f "%e" -o $RESULTS/$DT/timing.txt -a $CMD -m "commit dataset $i"
 done
+
+echo ""
+echo "remove tmp repo"
+
+# remove the test dir right away
+
+cd ../../
+chmod -R u+w $REPO
+rm -Rf $REPO
 
 echo ""
 echo "done"
