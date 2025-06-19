@@ -141,7 +141,7 @@ for i in $TARGETS ; do
     # make a directory hierarchy instead of too many directories
     M=$(($i%100))
 
-    echo $M $i
+    #echo $M $i
 
     DIR="$M/$i"
     mkdir -p $DIR
@@ -157,17 +157,18 @@ for i in $TARGETS ; do
     done
 
 
-    /usr/bin/time -f "%e" -o $RESULTS/$DT/timing.txt -a $CMD -m "commit dataset $i"
+    /usr/bin/time -f "%e" -o $RESULTS/$DT/timing.txt -a $CMD -m "commit dataset $i" >/dev/null
 done
 
 echo ""
-echo "remove tmp repo"
+cd ../../../
 
-# remove the test dir right away
+# remove the test repo right away
+#echo "remove tmp repo "$REPO
 
-cd ../../
 chmod -R u+w $REPO
 rm -Rf $REPO
+rmdir `dirname $REPO`
 
 echo ""
 echo "done"
