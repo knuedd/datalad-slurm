@@ -63,22 +63,27 @@ CMD=$6
 if [[ -z $CMD ]] ; then
 
     CMD="datalad save"
+    VERSIONCMD="datalad --version"
 
 elif [[ "git" == $CMD ]] ; then
 
     CMD="git addcommit"
+    VERSIONCMD="git --version"
 
 elif [[ "git commit" == $CMD ]] ; then
 
     CMD="git addcommit"
+    VERSIONCMD="git --version"
 
 elif [[ "datalad" == $CMD ]] ; then
 
     CMD="datalad save"
+    VERSIONCMD="datalad --version"
 
 elif [[ "datalad save" == $CMD ]] ; then
 
     CMD="datalad save"
+    VERSIONCMD="datalad --version"
 
 else
 
@@ -106,17 +111,19 @@ git config  alias.addcommit '!git add -A && git commit'
 
 HOST=`hostname`
 FILESYSTEM=`df -h -T $REPO | tail -n 1 | awk '{print $2}'`
+VERSION=`$VERSIONCMD`
 
 # Create JSON string with HOST and CMD
 JSON_PAYLOAD=$( jq -n \
     --arg hostname "$HOST" \
     --arg cmd "$CMD" \
+    --arg version "$VERSION" \
     --arg cmdline "$*" \
     --arg repo "$REPO" \
     --arg filesystem "$FILESYSTEM" \
     --arg numfiles "$NUMFILES" \
     --arg filesize "$FILESIZE" \
-    '{hostname: $hostname, test_command: $cmd, commandline: $cmdline, repo: $repo, filesystem: $filesystem, numfiles: $numfiles, filesize: $filesize}' )
+    '{hostname: $hostname, test_command: $cmd, version: $version, commandline: $cmdline, repo: $repo, filesystem: $filesystem, numfiles: $numfiles, filesize: $filesize}' )
 
 # Save JSON to a file
 echo "$JSON_PAYLOAD" >$RESULTS/$DT/metadata.json
