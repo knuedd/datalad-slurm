@@ -486,7 +486,7 @@ def schedule_cmd(
     # make all outputs relative to the repository root. 
     # If the job was scheduled from a subdir inside the repo, 
     # this needs to be prefixed
-    rel_path= rel=op.relpath(Path.cwd(),ds_path)
+    rel_path= rel=op.relpath(pwd,ds_path)
     specs["outputs"] = [ op.join(rel_path,output.rstrip("/")) for output in specs["outputs"]]
 
     # skip for callers that already take care of this
