@@ -134,6 +134,9 @@ echo "start"
 echo ""
 
 echo "num_jobs time">$RESULTS/$DT/timing.txt
+echo "num_jobs inode_cache active_objs num_objs">$RESULTS/$DT/inode_cache.txt
+echo "num_jobs dentry active_objs num_objs">$RESULTS/$DT/dentry.txt
+echo "num_jobs lsm_inode_cache active_objs num_objs">$RESULTS/$DT/lsm_inode_cache.txt
 
 
 # every loop:
