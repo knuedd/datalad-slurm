@@ -134,9 +134,16 @@ echo "start"
 echo ""
 
 echo "num_jobs time">$RESULTS/$DT/timing.txt
-echo "num_jobs inode_cache active_objs num_objs">$RESULTS/$DT/inode_cache.txt
-echo "num_jobs dentry active_objs num_objs">$RESULTS/$DT/dentry.txt
-echo "num_jobs lsm_inode_cache active_objs num_objs">$RESULTS/$DT/lsm_inode_cache.txt
+
+
+echo "num_jobs "\
+    "ext4_groupinfo_1k.name ext4_groupinfo_1k.active_objs ext4_groupinfo_1k.num_objs ext4_groupinfo_1k.objsize ext4_groupinfo_1k.objperslab ext4_groupinfo_1k.pagesperslab " \
+    "ext4_fc_dentry_update.name ext4_fc_dentry_update.active_objs ext4_fc_dentry_update.num_objs ext4_fc_dentry_update.objsize ext4_fc_dentry_update.objperslab ext4_fc_dentry_update.pagesperslab " \
+    "ext4_inode_cache.name ext4_inode_cache.active_objs ext4_inode_cache.num_objs ext4_inode_cache.objsize ext4_inode_cache.objperslab ext4_inode_cache.pagesperslab " \
+    "ext4_allocation_context.name ext4_allocation_context.active_objs ext4_allocation_context.num_objs ext4_allocation_context.objsize ext4_allocation_context.objperslab ext4_allocation_context.pagesperslab " \
+    "ext4_system_zone.name ext4_system_zone.active_objs ext4_system_zone.num_objs ext4_system_zone.objsize ext4_system_zone.objperslab ext4_system_zone.pagesperslab " \
+    "ext4_io_end.name ext4_io_end.active_objs ext4_io_end.num_objs ext4_io_end.objsize ext4_io_end.objperslab ext4_io_end.pagesperslab " \
+    "ext4_extent_status.name ext4_extent_status.active_objs ext4_extent_status.num_objs ext4_extent_status.objsize ext4_extent_status.objperslab ext4_extent_status.pagesperslab " >$RESULTS/$DT/proc_slabinfo.txt
 
 
 # every loop:
@@ -147,9 +154,7 @@ echo "num_jobs lsm_inode_cache active_objs num_objs">$RESULTS/$DT/lsm_inode_cach
 for i in $TARGETS ; do
 
     echo -n $i" " >>$RESULTS/$DT/timing.txt
-    echo -n $i" " >>$RESULTS/$DT/inode_cache.txt
-    echo -n $i" " >>$RESULTS/$DT/dentry.txt
-    echo -n $i" " >>$RESULTS/$DT/lsm_inode_cache.txt
+    echo -n $i" " >>$RESULTS/$DT/proc_slabinfo.txt
 
     # make a directory hierarchy instead of too many directories
     M=$(($i%100))
@@ -171,9 +176,7 @@ for i in $TARGETS ; do
 
     /usr/bin/time -f "%e" -o $RESULTS/$DT/timing.txt -a $CMD -m "commit dataset $i" >/dev/null
 
-    cat /proc/slabinfo | grep ^inode_cache | awk '{print $1 " " $2 " " $3}'>>$RESULTS/$DT/inode_cache.txt
-    cat /proc/slabinfo | grep ^dentry | awk '{print $1 " " $2 " " $3}'>>$RESULTS/$DT/dentry.txt
-    cat /proc/slabinfo | grep ^lsm_inode_cache | awk '{print $1 " " $2 " " $3}'>>$RESULTS/$DT/lsm_inode_cache.txt
+    cat /proc/slabinfo|grep ext4|awk '{print $1" "$2" "$3" "$4" "$5" "$6}'| tr '\n' ' ' >>$RESULTS/$DT/proc_slabinfo.txt
 done
 
 echo ""
