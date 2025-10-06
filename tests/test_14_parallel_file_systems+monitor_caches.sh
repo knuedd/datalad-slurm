@@ -177,6 +177,7 @@ for i in $TARGETS ; do
     /usr/bin/time -f "%e" -o $RESULTS/$DT/timing.txt -a $CMD -m "commit dataset $i" >/dev/null
 
     cat /proc/slabinfo|grep ext4|awk '{print $1" "$2" "$3" "$4" "$5" "$6}'| tr '\n' ' ' >>$RESULTS/$DT/proc_slabinfo.txt
+    echo "" >>$RESULTS/$DT/proc_slabinfo.txt # add the necessary newline
 done
 
 echo ""
