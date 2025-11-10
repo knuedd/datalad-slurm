@@ -25,9 +25,6 @@ ENV PATH="/opt/dl-venv/bin:${PATH}"
 # Base DataLad
 RUN pip install --upgrade pip && pip install datalad
 
-# Clone and install the extension in editable mode
-WORKDIR /opt/src
-RUN git clone --depth=1 https://github.com/knuedd/datalad-slurm.git
 WORKDIR /opt/src/datalad-slurm
 RUN pip install -e .
 

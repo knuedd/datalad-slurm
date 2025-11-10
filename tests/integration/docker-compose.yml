@@ -112,7 +112,8 @@ services:
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
-      - ./cgroup.conf:/etc/slurm/cgroup.conf # <-- ADICIONADO AQUI
+      - ./cgroup.conf:/etc/slurm/cgroup.conf
+      - ../../:/opt/src/datalad-slurm 
     working_dir: /data
     environment:
       - DATALAD_UI_PROGRESS=none

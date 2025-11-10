@@ -31,5 +31,6 @@ jobs:
         run: docker compose logs
         
       - name: Clean up
+        working-directory: tests/integration
         if: always()
         run: docker compose down -v
