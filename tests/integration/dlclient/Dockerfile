@@ -24,10 +24,8 @@ ENV PATH="/opt/dl-venv/bin:${PATH}"
 
 # Base DataLad
 RUN pip install --upgrade pip && pip install datalad
-RUN ls -la /opt/src/datalad-slurm
 
-WORKDIR /opt/src/datalad-slurm
-RUN pip install -e .
+# Clone and install the extension in editable mode
 
 # Entrypoint
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh

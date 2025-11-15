@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 install -d -o munge -g munge -m 0755 /run/munge
+pip install -e /opt/src/datalad-slurm
+
 
 # If /etc/munge is writable, chown it to munge. If it's a read-only/shared mount,
 # add the munge user to the group owning the mount so it can read group-readable files.
