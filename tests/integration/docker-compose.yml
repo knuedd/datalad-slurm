@@ -114,6 +114,7 @@ services:
       - var_log_slurm:/var/log/slurm
       - ./cgroup.conf:/etc/slurm/cgroup.conf
       - ../../:/opt/src/datalad-slurm 
+      - ./tests:/opt/tests
     working_dir: /data
     environment:
       - DATALAD_UI_PROGRESS=none

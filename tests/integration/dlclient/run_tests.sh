@@ -38,43 +38,33 @@ sleep 1
 # Optional sanity: see the cluster
 sinfo || true
 
-# Create a DataLad dataset on the shared /data volume
-ds=/data/ds-hello
-if [ ! -d "$ds/.git" ]; then
-  datalad create -c text2git "$ds"
-fi
-cd "$ds"
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
 
-# Hello world job script
-cat > job.sh <<'EOF'
-#!/bin/bash
-#SBATCH --job-name=hello
-#SBATCH --output=slurm-1.out
-echo "Hello world" >> slurm-1.out
-EOF
-chmod +x job.sh
-datalad save -m "Add job script"
+FAILED=""
 
-# sleep infinity & wait
+for t in /opt/tests/*.sh; do
+  name=$(basename "$t")
+  echo
+  echo "=== Running test: $name ==="
 
-# Schedule via the DataLad extension wrapping sbatch
-datalad slurm-schedule -o slurm-1.out sbatch ./job.sh
-
-
-# Poll until the job is no longer in the queue
-while squeue -h | grep -q .; do
-  sleep 2
+  if sh "$t"; then
+    echo -e "${GREEN}✔ PASSED: $name${NC}"
+  else
+    echo -e "${RED}✘ FAILED: $name${NC}"
+    FAILED="$FAILED $name"
+  fi
 done
 
-# Capture open job list
-output=$(datalad slurm-finish --list-open-jobs)
+echo
 
-echo "$output"
-
-# Verify that there is exactly one COMPLETED job
-if echo "$output" | grep -Eq '^[[:space:]]*1[[:space:]]+COMPLETED'; then
-  echo "Job completed successfully!"
-else
-  echo "Unexpected job status:"
+if [ -n "$FAILED" ]; then
+  echo -e "${RED}Failed tests:${NC}"
+  for f in $FAILED; do
+    echo -e " - ${RED}$f${NC}"
+  done
   exit 1
 fi
+
+echo -e "${GREEN}All tests passed!"

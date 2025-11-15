@@ -28,6 +28,6 @@ RUN pip install --upgrade pip && pip install datalad
 # Clone and install the extension in editable mode
 
 # Entrypoint
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+COPY run_tests.sh /usr/local/bin/run_tests.sh
+RUN chmod +x /usr/local/bin/run_tests.sh
+ENTRYPOINT ["/usr/local/bin/run_tests.sh"]
