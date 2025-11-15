@@ -18,7 +18,7 @@ jobs:
       - name: Build and start SLURM cluster
         working-directory: tests/integration
         run: |
-          docker compose up -d mysql slurmdbd slurmctld c1 c2
+          docker compose up -d mysql slurmdbd slurmctld c1
 
       - name: Build and run DataLad client test
         working-directory: tests/integration

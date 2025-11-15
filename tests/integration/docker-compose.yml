@@ -47,7 +47,7 @@ services:
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
-      - ./cgroup.conf:/etc/slurm/cgroup.conf # <-- ADICIONADO AQUI
+      - ./cgroup.conf:/etc/slurm/cgroup.conf 
     expose:
       - "6817"
     depends_on:
@@ -69,7 +69,7 @@ services:
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
-      - ./cgroup.conf:/etc/slurm/cgroup.conf # <-- ADICIONADO AQUI
+      - ./cgroup.conf:/etc/slurm/cgroup.conf 
     expose:
       - "6818"
     depends_on:
@@ -77,27 +77,6 @@ services:
     networks:
       - slurm-network
 
-  c2:
-    image: slurm-docker-cluster:${SLURM_VERSION:-22.05.8}
-    build:
-      context: .
-      args:
-        SLURM_TAG: ${SLURM_TAG:-slurm-22-05-8-1}
-    command: ["slurmd"]
-    hostname: c2
-    container_name: c2
-    volumes:
-      - etc_munge:/etc/munge
-      - etc_slurm:/etc/slurm
-      - slurm_jobdir:/data
-      - var_log_slurm:/var/log/slurm
-      - ./cgroup.conf:/etc/slurm/cgroup.conf # <-- ADICIONADO AQUI
-    expose:
-      - "6818"
-    depends_on:
-      - "slurmctld"
-    networks:
-      - slurm-network
   dlclient:
     build:
       context: ./dlclient
