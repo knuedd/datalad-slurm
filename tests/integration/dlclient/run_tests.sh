@@ -67,4 +67,59 @@ if [ -n "$FAILED" ]; then
   exit 1
 fi
 
-echo -e "${GREEN}All tests passed!"
+echo -e "${GREEN}All light integration tests passed!"
+
+
+FAILED=""
+# sleep infinity & wait
+SKIP_TESTS="5 8 9 14"
+
+
+cat > /opt/heavy-tests/slurm_config.txt <<'EOF'
+account=casus
+partition=normal
+USER=$(whoami)
+EOF
+# Need to skip tests #5, 8, 9, 14
+for t in /opt/heavy-tests/test_*.sh; do
+  name=$(basename "$t")
+
+  # Extract test number (test_5_something.sh → 5)
+  test_num=$(echo "$name" | sed -n 's/^test_\([0-9]\+\)_.*/\1/p' | sed 's/^0*//')
+
+
+  # Skip selected tests
+  for skip in $SKIP_TESTS; do
+    if [ "$test_num" = "$skip" ]; then
+      echo "=== Skipping test: $name ==="
+      continue 2
+    fi
+  done
+
+  echo
+  echo "=== Running test: $name ==="
+  mkdir -p "/data/heavy-tests/$name"
+
+  args=("/data/heavy-tests/$name")
+  if [ "$name" = "test_13_alt_dir.sh" ]; then
+    args=("/data/heavy-tests/$name" "/data/heavy-tests/${name}_alt")
+  fi
+
+  if "$t" "${args[@]}"; then
+    echo -e "${GREEN}✔ PASSED: $name${NC}"
+  else
+    echo -e "${RED}✘ FAILED: $name${NC}"
+    FAILED="$FAILED $name"
+  fi
+done
+
+echo
+if [ -n "$FAILED" ]; then
+  echo -e "${RED}Failed tests:${NC}"
+  for f in $FAILED; do
+    echo -e " - ${RED}$f${NC}"
+  done
+  exit 1
+fi
+
+echo -e "${GREEN}All heavy integration tests passed!"

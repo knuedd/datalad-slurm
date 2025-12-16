@@ -94,6 +94,7 @@ services:
       - ./cgroup.conf:/etc/slurm/cgroup.conf
       - ../../:/opt/src/datalad-slurm 
       - ./tests:/opt/tests
+      - ../:/opt/heavy-tests
     working_dir: /data
     environment:
       - DATALAD_UI_PROGRESS=none
