@@ -87,7 +87,9 @@ def connect_to_database(dset, row_factory=False):
     """
     # define the database path from the dataset and branch
     ds_repo = dset.repo
-    db_name = f"{dset.id}.db"
+    db_name = f"dataset-slurm-{dset.id}.db"
+    if None == dset.id:
+        db_name= "dataset-slurm.db" # fallback name if .datalad/ is not found in the repo
     db_path = dset.pathobj / ".git" / db_name
 
     # try to connect to the database
