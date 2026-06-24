@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   add:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Only run on PRs that have the "CHANGELOG-missing" label:
     if: contains(github.event.pull_request.labels.*.name, 'CHANGELOG-missing')
     steps:
