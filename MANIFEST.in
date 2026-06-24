@@ -1,6 +1,8 @@
-include CONTRIBUTORS LICENSE versioneer.py
-graft _datalad_buildsupport
-graft datalad_slurm
-graft docs
+include CONTRIBUTORS LICENSE versioneer.py README.md
+recursive-include src *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]
+recursive-include _datalad_buildsupport *.py
+recursive-include tests *.py
+recursive-include docs *.rst *.png *.md
 prune docs/build
-global-exclude *.py[cod]
