@@ -12,9 +12,9 @@ jobs:
       run: |
         git config --global user.email "test@github.land"
         git config --global user.name "GitHub Almighty"
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4.1.7
     - name: Set up Python 3.8
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v5.2.0
       with:
         python-version: 3.8
     - name: Install dependencies
