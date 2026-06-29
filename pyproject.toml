@@ -14,7 +14,8 @@ authors = [
     {name = "Andreas Knüpfer", email = "a.knuepfer@hzdr.de"},
     {name = "Timothy Callow", email = "t.callow@hzdr.de"},
 ]
-description = "A DataLad extension for HPC (slurm) systems"
+description = "A DataLad extension for managing research data workflows on SLURM-based HPC systems"
+keywords = ["datalad", "slurm", "hpc", "high-performance-computing", "workflow", "scientific-computing"]
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
