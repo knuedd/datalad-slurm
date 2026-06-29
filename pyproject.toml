@@ -2,8 +2,7 @@
 requires = [
     "setuptools >= 43.0.0",
     "wheel",
-    "setuptools-scm >= 8.0",
-    "versioneer",
+    "setuptools-scm[toml] >= 8.0",
 ]
 build-backend = "setuptools.build_meta"
 
@@ -68,14 +67,8 @@ where = ["src"]
 dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools_scm]
-
-[tool.versioneer]
-VCS = "git"
-style = "pep440"
-versionfile_source = "datalad_slurm/_version.py"
-versionfile_build = "datalad_slurm/_version.py"
-tag_prefix = ""
-parentdir_prefix = ""
+version_file = "src/datalad_slurm/_version.py"
+local_scheme = "no-local-version"
 
 [tool.codespell]
 skip = ".git*,versioneer.py"
