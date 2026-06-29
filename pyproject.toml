@@ -2,13 +2,16 @@
 requires = [
     "setuptools >= 43.0.0",
     "wheel",
-    "setuptools-scm[toml] >= 8.0",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "datalad-slurm"
-dynamic = ["version", "dependencies"]
+version = "0.2.4"
+dependencies = [
+    "sqlalchemy>=1.4.0",
+    "tqdm>=4.0.0",
+]
 authors = [
     {name = "Andreas Knüpfer", email = "a.knuepfer@hzdr.de"},
     {name = "Timothy Callow", email = "t.callow@hzdr.de"},
@@ -62,13 +65,6 @@ slurm = "datalad_slurm:command_suite"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
-
-[tool.setuptools_scm]
-version_file = "src/datalad_slurm/_version.py"
-local_scheme = "no-local-version"
 
 [tool.codespell]
 skip = ".git*,versioneer.py"
