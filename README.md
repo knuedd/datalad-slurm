@@ -9,20 +9,28 @@
 
 DataLad is a package which facilitates adherence to the [FAIR](https://www.nature.com/articles/sdata201618) research data management principles.
 
-`datalad-slurm` sits on top of the main DataLad package, and it is designed to improve the DataLad workflow on HPC systems. The package is aimed at slurm systems due to the prominence of slurm in HPC settings, but in the future it may be extended to HPC systems more generally. 
+`datalad-slurm` sits on top of the main DataLad package, and it is designed to improve the DataLad workflow on HPC systems. The package is aimed at slurm systems due to the prominence of SLURM in HPC settings, but in the future it may be extended to HPC systems more generally. 
 
 `datalad-slurm` makes it easier for users to manage their research data on HPC systems with DataLad, and also solves the following conflicts of DataLad usage in HPC systems:
 
 - **Inefficient** sequential sections in highly parallel HPC jobs
 - **Critical** race conditions between git commands in concurrent jobs
 
+
 ## Installation
 
-First, install the main [DataLad](http://datalad.org) package and its dependencies.
+First, install [DataLad](http://datalad.org) and [git-annex](https://git-annex.branchable.com/). This can be done via Linux distribution packages or via Python `pip` or `pipx` or in other ways.
 
-Then, clone this repository and install the extension with:
+The install `datalad-slurm` with
+
+    pip install datalad-slurm
+
+or install from a clone of this repository with
 
     pip install -e .
+
+in a Python virtual env or without one. Note that `datalad-slurm` does not have `datalad` as a Python dependency so that it will not force `datalad` to be installed in the same way.
+
 
 ## Example usage
 
