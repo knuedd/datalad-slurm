@@ -77,6 +77,13 @@ extensions = [
 # for the module reference
 autosummary_generate = True
 
+# datalad renders command examples (``_examples_``) as an "Examples" section.
+# Recent docutils flags that as an "unexpected section title" when the
+# auto-generated command docstring is injected into an autodoc directive body
+# (the example text itself still renders). Suppress those docutils system
+# messages so the strict (-W) build is not broken by generated command docs.
+suppress_warnings = ['docutils']
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
