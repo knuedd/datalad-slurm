@@ -1,9 +1,72 @@
 [build-system]
-requires = ["setuptools >= 43.0.0", "wheel"]
+requires = [
+    "setuptools >= 43.0.0",
+    "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "datalad-slurm"
+version = "0.2.5"
+dependencies = [
+    "sqlalchemy>=1.4.0",
+    "tqdm>=4.0.0",
+]
+authors = [
+    {name = "Andreas Knüpfer", email = "a.knuepfer@hzdr.de"},
+    {name = "Timothy Callow", email = "t.callow@hzdr.de"},
+]
+description = "A DataLad extension for managing research data workflows on SLURM-based HPC systems"
+keywords = ["datalad", "slurm", "hpc", "high-performance-computing", "workflow", "scientific-computing"]
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest >= 6.0",
+    "pytest-cov >= 2.0",
+]
+dev = [
+    "black >= 23.0",
+    "flake8 >= 5.0",
+    "isort >= 5.0",
+    "codespell >= 2.0",
+]
+devel = [
+    "pytest",
+    "pytest-cov",
+    "coverage",
+    "sphinx",
+    "sphinx_rtd_theme",
+]
+devel-utils = [
+    "pytest-xdist",
+    "scriv",
+]
+
+[project.urls]
+Homepage = "https://github.com/knuedd/datalad-slurm"
+Repository = "https://github.com/knuedd/datalad-slurm.git"
+Issues = "https://github.com/knuedd/datalad-slurm/issues"
+
+[project.entry-points."datalad.extensions"]
+slurm = "datalad_slurm:command_suite"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.codespell]
-# Ref: https://github.com/codespell-project/codespell#using-a-config-file
-skip = '.git*,versioneer.py'
+skip = ".git*,versioneer.py"
 check-hidden = true
-# ignore-regex = ''
-ignore-words-list = 'inbetween'
+ignore-words-list = "inbetween"

@@ -1,26 +1,36 @@
 # datalad-slurm: A DataLad extension for HPC (slurm) systems
 
-[![Build status](https://ci.appveyor.com/api/projects/status/g9von5wtpoidcecy/branch/main?svg=true)](https://ci.appveyor.com/project/mih/datalad-extension-template/branch/main) [![codecov.io](https://codecov.io/github/datalad/datalad-extension-template/coverage.svg?branch=main)](https://codecov.io/github/datalad/datalad-extension-template?branch=main) [![crippled-filesystems](https://github.com/datalad/datalad-extension-template/workflows/crippled-filesystems/badge.svg)](https://github.com/datalad/datalad-extension-template/actions?query=workflow%3Acrippled-filesystems) [![docs](https://github.com/datalad/datalad-extension-template/workflows/docs/badge.svg)](https://github.com/datalad/datalad-extension-template/actions?query=workflow%3Adocs)
+[![PyPI version](https://img.shields.io/pypi/v/datalad-slurm.svg)](https://pypi.org/project/datalad-slurm/) [![Build status](https://github.com/datalad/datalad-slurm/actions/workflows/test.yml/badge.svg)](https://github.com/datalad/datalad-slurm/actions) [![codecov.io](https://codecov.io/github/datalad/datalad-slurm/coverage.svg?branch=main)](https://codecov.io/github/datalad/datalad-slurm?branch=main) [![Documentation Status](https://readthedocs.org/projects/datalad-slurm/badge/?version=latest)](https://datalad-slurm.readthedocs.io/en/latest/?badge=latest)
+
+[![Python versions](https://img.shields.io/pypi/pyversions/datalad-slurm.svg)](https://pypi.org/project/datalad-slurm/) [![License](https://img.shields.io/pypi/l/datalad-slurm.svg)](https://pypi.org/project/datalad-slurm/) [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.12345678.svg)](https://doi.org/10.5281/zenodo.12345678)
 
 
 `datalad-slurm` is an extension to the [DataLad](http://datalad.org) package for high-performance computing (HPC), specifically slurm systems. 
 
 DataLad is a package which facilitates adherence to the [FAIR](https://www.nature.com/articles/sdata201618) research data management principles.
 
-`datalad-slurm` sits on top of the main DataLad package, and it is designed to improve the DataLad workflow on HPC systems. The package is aimed at slurm systems due to the prominence of slurm in HPC settings, but in the future it may be extended to HPC systems more generally. 
+`datalad-slurm` sits on top of the main DataLad package, and it is designed to improve the DataLad workflow on HPC systems. The package is aimed at slurm systems due to the prominence of SLURM in HPC settings, but in the future it may be extended to HPC systems more generally. 
 
 `datalad-slurm` makes it easier for users to manage their research data on HPC systems with DataLad, and also solves the following conflicts of DataLad usage in HPC systems:
 
 - **Inefficient** sequential sections in highly parallel HPC jobs
 - **Critical** race conditions between git commands in concurrent jobs
 
+
 ## Installation
 
-First, install the main [DataLad](http://datalad.org) package and its dependencies.
+First, install [DataLad](http://datalad.org) and [git-annex](https://git-annex.branchable.com/). This can be done via Linux distribution packages or via Python `pip` or `pipx` or in other ways.
 
-Then, clone this repository and install the extension with:
+The install `datalad-slurm` with
+
+    pip install datalad-slurm
+
+or install from a clone of this repository with
 
     pip install -e .
+
+in a Python virtual env or without one. Note that `datalad-slurm` does not have `datalad` as a Python dependency so that it will not force `datalad` to be installed in the same way.
+
 
 ## Example usage
 

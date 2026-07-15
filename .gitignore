@@ -12,6 +12,6 @@ docs/source/generated
 build/
 dist/
 .idea/
-venvs/
+venv/
 tests/slurm_config.txt
 tests/slurm.template.sh

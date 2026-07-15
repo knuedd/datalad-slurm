@@ -4,8 +4,9 @@ on: [push, pull_request]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+    env:
+      ACTIONS_RUNNER_FORCE_NODE_24: 'true'
 
     steps:
     - name: Set up environment
