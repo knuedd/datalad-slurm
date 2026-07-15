@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "datalad-slurm"
-version = "0.2.4"
+version = "0.2.5"
 dependencies = [
     "sqlalchemy>=1.4.0",
     "tqdm>=4.0.0",
