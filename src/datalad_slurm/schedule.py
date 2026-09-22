@@ -956,8 +956,13 @@ def get_slurm_output_files(ds_root, job_id, alt_dir=None):
         stdout_path = parsed_data.get("StdOut")
         stderr_path = parsed_data.get("StdErr")
 
-        if not stdout_path or not stderr_path:
+        # stdout is essential
+        if not stdout_path:
             raise ValueError("Could not find StdOut or StdErr paths in scontrol output")
+
+        # if stderr not specified or "" then workaround
+        if not stderr_path:
+            stderr_path= stdout_path
 
         cwd = alt_dir if alt_dir else Path.cwd()
 
