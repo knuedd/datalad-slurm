@@ -58,7 +58,7 @@ from datalad.core.local.run import (
     _get_substitutions,
 )
 
-from .common import connect_to_database
+from .common import connect_to_database, get_realpath_mismatch
 
 lgr = logging.getLogger("datalad.slurm.schedule")
 
@@ -480,6 +480,29 @@ def schedule_cmd(
             ds=ds,
             status="impossible",
             message=("At least one output must be specified for datalad schedule."),
+        )
+        return
+
+    # error out if the repository root path differs from its realpath, e.g.
+    # because it is reached through a symlinked directory. The relative paths
+    # computed below would then end up outside the repository, and the job
+    # could never be saved by slurm-finish. cd'ing later does not help because
+    # the broken paths are already recorded, so refuse to schedule.
+    mismatch_path, real_path = get_realpath_mismatch(ds)
+    if mismatch_path:
+        yield get_status_dict(
+            "slurm-schedule",
+            ds=ds,
+            status="error",
+            message=(
+                f"The path to the root of the current git repository "
+                f"({mismatch_path}) is different from its realpath "
+                f"({real_path}). A job scheduled through this symlinked path "
+                f"would record output paths outside the repository, which "
+                f"`datalad slurm-finish` cannot save afterwards. \n"
+                f"Please `cd {real_path}` and run `datalad slurm-schedule` "
+                f"again."
+            ),
         )
         return
 
