@@ -4,6 +4,7 @@ __docformat__ = "restructuredtext"
 
 import json
 import logging
+import os
 import subprocess
 import os.path as op
 
@@ -301,6 +302,7 @@ def finish_cmd(
     # needs to be run from the realpath as well.
     mismatch_path, real_path = get_realpath_mismatch(ds)
     if mismatch_path:
+        cwd_realpath = op.realpath(os.getcwd())
         yield get_status_dict(
             "slurm-finish",
             ds=ds,
@@ -310,7 +312,8 @@ def finish_cmd(
                 f"({mismatch_path}) is different from its realpath "
                 f"({real_path}). The scheduled jobs are fine, but this command "
                 f"must be run from the realpath. \n"
-                f"Please `cd {real_path}` and run `datalad slurm-finish` again."
+                f"Please `cd {cwd_realpath}` and run `datalad slurm-finish` "
+                f"again."
             ),
         )
         return

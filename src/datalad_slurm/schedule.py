@@ -490,6 +490,7 @@ def schedule_cmd(
     # the broken paths are already recorded, so refuse to schedule.
     mismatch_path, real_path = get_realpath_mismatch(ds)
     if mismatch_path:
+        cwd_realpath = op.realpath(os.getcwd())
         yield get_status_dict(
             "slurm-schedule",
             ds=ds,
@@ -500,7 +501,7 @@ def schedule_cmd(
                 f"({real_path}). A job scheduled through this symlinked path "
                 f"would record output paths outside the repository, which "
                 f"`datalad slurm-finish` cannot save afterwards. \n"
-                f"Please `cd {real_path}` and run `datalad slurm-schedule` "
+                f"Please `cd {cwd_realpath}` and run `datalad slurm-schedule` "
                 f"again."
             ),
         )
