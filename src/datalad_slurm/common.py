@@ -64,6 +64,36 @@ def get_finish_info(dset, message):
     return rec_msg.rstrip(), runinfo
 
 
+def get_realpath_mismatch(dset):
+    """
+    Check whether the dataset root path differs from its realpath.
+
+    When the repository is reached through one or more symlinked directories,
+    the path recorded by DataLad (which preserves symlinks via the PWD
+    environment variable) differs from the fully resolved realpath. This
+    mismatch causes `slurm-schedule` to record output paths that appear to be
+    outside the repository, which in turn makes `slurm-finish` fail when it
+    hands those paths to git.
+
+    Parameters
+    ----------
+    dset : Dataset
+        Dataset object with path information.
+
+    Returns
+    -------
+    tuple
+        (str or None, str or None)
+        - The dataset root path if it differs from its realpath, None otherwise.
+        - The realpath of the dataset root if a mismatch exists, None otherwise.
+    """
+    ds_path = dset.path
+    real_path = op.realpath(ds_path)
+    if op.normpath(ds_path) != op.normpath(real_path):
+        return ds_path, real_path
+    return None, None
+
+
 def connect_to_database(dset, row_factory=False):
     """
     Connect to sqlite3 database and return the connection and cursor.

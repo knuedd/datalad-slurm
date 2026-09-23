@@ -32,7 +32,7 @@ from datalad.utils import (
     ensure_list,
 )
 
-from .common import connect_to_database
+from .common import connect_to_database, get_realpath_mismatch
 
 from datalad.core.local.run import _create_record, get_command_pwds
 
@@ -293,6 +293,27 @@ def finish_cmd(
         dataset, check_installed=True, purpose="track command outcomes"
     )
     ds_path = ds.path
+
+    # error out if the repository root path differs from its realpath, e.g.
+    # because it is reached through a symlinked directory. The jobs themselves
+    # are fine: `datalad slurm-schedule` refuses to schedule through such a
+    # path, so they were recorded relative to the realpath. This command just
+    # needs to be run from the realpath as well.
+    mismatch_path, real_path = get_realpath_mismatch(ds)
+    if mismatch_path:
+        yield get_status_dict(
+            "slurm-finish",
+            ds=ds,
+            status="error",
+            message=(
+                f"The path to the root of the current git repository "
+                f"({mismatch_path}) is different from its realpath "
+                f"({real_path}). The scheduled jobs are fine, but this command "
+                f"must be run from the realpath. \n"
+                f"Please `cd {real_path}` and run `datalad slurm-finish` again."
+            ),
+        )
+        return
 
     # if committing failed jobs, close_failed_jobs must be set to True
     if commit_failed_jobs:
