@@ -94,6 +94,19 @@ def get_realpath_mismatch(dset):
     return None, None
 
 
+def get_database_path(dset):
+    """Return the path of the sqlite3 database for a dataset."""
+    return dset.pathobj / ".git" / f"{dset.id}.db"
+
+
+def table_exists(cur, name):
+    """Return whether a table exists in the database behind the cursor."""
+    cur.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (name,)
+    )
+    return cur.fetchone() is not None
+
+
 def connect_to_database(dset, row_factory=False):
     """
     Connect to sqlite3 database and return the connection and cursor.
@@ -116,9 +129,7 @@ def connect_to_database(dset, row_factory=False):
     Database path is constructed from dataset ID and branch in .git directory
     """
     # define the database path from the dataset and branch
-    ds_repo = dset.repo
-    db_name = f"{dset.id}.db"
-    db_path = dset.pathobj / ".git" / db_name
+    db_path = get_database_path(dset)
 
     # try to connect to the database
     try:

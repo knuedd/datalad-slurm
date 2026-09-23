@@ -286,7 +286,14 @@ class Schedule(Interface):
         dry_run = kwargs.get("dry_run")
         if dry_run and "dry_slurm_run_info" in res:
             if dry_run == "basic":
-                _display_basic(res)
+                # _display_basic() expects the generic DataLad `run` keys,
+                # while this command records them under slurm-specific names
+                basic_res = dict(
+                    res,
+                    dry_run_info=res["dry_slurm_run_info"],
+                    run_info=res["slurm_run_info"],
+                )
+                _display_basic(basic_res)
             elif dry_run == "command":
                 ui.message(res["dry_slurm_run_info"]["cmd_expanded"])
             else:

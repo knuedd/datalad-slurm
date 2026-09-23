@@ -33,7 +33,7 @@ from datalad.utils import (
     ensure_list,
 )
 
-from .common import connect_to_database, get_realpath_mismatch
+from .common import connect_to_database, get_realpath_mismatch, table_exists
 
 from datalad.core.local.run import _create_record, get_command_pwds
 
@@ -104,7 +104,7 @@ class Finish(Interface):
             Note this automatically enables close_failed_jobs.""",
         ),
         list_open_jobs=Parameter(
-            args=("--list-open-jobs",),
+            args=("-l", "--list-open-jobs"),
             action="store_true",
             doc="""List all open scheduled jobs (those which haven't been finished).""",
         ),
@@ -221,6 +221,10 @@ def get_scheduled_commits(dset):
     con, cur = connect_to_database(dset, row_factory=True)
     if not con or not cur:
         return None, None
+
+    # no jobs have ever been scheduled if the table does not exist
+    if not table_exists(cur, "open_jobs"):
+        return [], True
 
     # select the slurm job ids into a list
     cur.execute("SELECT slurm_job_id FROM open_jobs")
@@ -467,6 +471,12 @@ def finish_cmd(
 def extract_from_db(dset, slurm_job_id):
     """Extract the run info from the database entry."""
     con, cur = connect_to_database(dset)
+    if not con or not cur:
+        return None
+
+    # no jobs have ever been scheduled if the table does not exist
+    if not table_exists(cur, "open_jobs"):
+        return None
 
     # select all columns
     query = "SELECT * FROM open_jobs WHERE slurm_job_id = ?"
