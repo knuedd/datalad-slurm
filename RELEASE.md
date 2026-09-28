@@ -1,18 +1,20 @@
 # Release Process
 
-## Version Bump
+## Version
 
-Update version in two files:
+The version is derived automatically from the git tag by
+[setuptools-scm](https://github.com/pypa/setuptools_scm). There is no
+version string to edit manually.
 
-1. `pyproject.toml` line 10:
-   ```toml
-   version = "x.y.z"
-   ```
+To make a release, create and push an annotated (or lightweight) tag:
 
-2. `src/datalad_slurm/__init__.py` line 49:
-   ```python
-   __version__ = "x.y.z"
-   ```
+```bash
+git tag 0.3.0
+git push origin 0.3.0
+```
+
+Tags must be plain PEP 440 versions (e.g. `0.3.0`). Builds between tags get
+an automatically derived development version such as `0.3.0.dev3+g7bf28c2`.
 
 ## Build and Upload
 

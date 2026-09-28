@@ -2,7 +2,7 @@ PYTHON ?= python
 
 clean:
 	$(PYTHON) setup.py clean
-	rm -rf dist build bin docs/build docs/source/generated *.egg-info
+	rm -rf dist build bin docs/build docs/source/generated *.egg-info src/datalad_slurm/_version.py
 	-find . -name '*.pyc' -delete
 	-find . -name '__pycache__' -type d -delete
 

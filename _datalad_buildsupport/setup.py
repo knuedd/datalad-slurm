@@ -14,12 +14,37 @@ from os.path import (
     join as opj,
 )
 from setuptools import Command
-from setuptools.config import read_configuration
 from setuptools.errors import OptionError
 
-import versioneer
-
 from . import formatters as fmt
+
+
+def _authors_from_pyproject():
+    """Return (author, author_email) from [project] in pyproject.toml.
+
+    The project is configured exclusively via ``pyproject.toml``, so when
+    ``setup.py`` is invoked directly (e.g. by the documentation build) the
+    metadata is not populated on the distribution object. Fall back to reading
+    it from ``pyproject.toml``.
+    """
+    try:
+        import tomllib
+    except ImportError:  # pragma: no cover - Python < 3.11
+        try:
+            import tomli as tomllib
+        except ImportError:
+            return '', ''
+
+    pyproject = opj(dirname(dirname(__file__)), 'pyproject.toml')
+    try:
+        with open(pyproject, 'rb') as fobj:
+            authors = tomllib.load(fobj).get('project', {}).get('authors', [])
+    except (OSError, ValueError):
+        return '', ''
+
+    names = [a['name'] for a in authors if a.get('name')]
+    emails = [a['email'] for a in authors if a.get('email')]
+    return ', '.join(names), ', '.join(emails)
 
 
 class BuildManPage(Command):
@@ -126,12 +151,15 @@ class BuildManPage(Command):
         #appname = self._parser.prog
         appname = 'datalad'
 
-        cfg = read_configuration(
-            opj(dirname(dirname(__file__)), 'setup.cfg'))['metadata']
+        author = dist.get_author() or ''
+        author_email = dist.get_author_email() or ''
+
+        if not author:
+            author, author_email = _authors_from_pyproject()
 
         sections = {
             'Authors': """{0} is developed by {1} <{2}>.""".format(
-                appname, cfg['author'], cfg['author_email']),
+                appname, author, author_email),
         }
 
         for cls, opath, ext in ((fmt.ManPageFormatter, self.manpath, '1'),
@@ -148,7 +176,7 @@ class BuildManPage(Command):
                 format = cls(
                     cmdname,
                     ext_sections=sections,
-                    version=versioneer.get_version())
+                    version=dist.get_version())
                 formatted = format.format_man_page(p)
                 with open(opj(opath, '{0}.{1}'.format(
                         cmdname.replace(' ', '-'),

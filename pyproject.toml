@@ -2,12 +2,13 @@
 requires = [
     "setuptools >= 43.0.0",
     "wheel",
+    "setuptools-scm >= 8.0",
 ]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "datalad-slurm"
-version = "0.2.5"
+dynamic = ["version"]
 dependencies = [
     "sqlalchemy>=1.4.0",
     "tqdm>=4.0.0",
@@ -66,7 +67,11 @@ slurm = "datalad_slurm:command_suite"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools_scm]
+write_to = "src/datalad_slurm/_version.py"
+fallback_version = "0.0.0"
+
 [tool.codespell]
-skip = ".git*,versioneer.py"
+skip = ".git*,src/datalad_slurm/_version.py"
 check-hidden = true
 ignore-words-list = "inbetween"
