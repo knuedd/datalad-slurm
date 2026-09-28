@@ -1,4 +1,4 @@
-name: Auto-release on PR merge
+name: Release
 
 on:
   # This action should be run in workflows triggered by `pull_request_target`
@@ -9,12 +9,16 @@ on:
       - main
     types:
       - closed
+  # Allow manually triggering a release via the "Run workflow" button:
+  workflow_dispatch:
 
 jobs:
   release:
     runs-on: ubuntu-24.04
-    # Only run for merged PRs with the "release" label:
-    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
+    # Only run for manual runs or merged PRs with the "release" label:
+    if: >
+      github.event_name == 'workflow_dispatch'
+      || (github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release'))
     steps:
       - name: Checkout source
         uses: actions/checkout@v6
