@@ -45,7 +45,7 @@
 #     respective CI run configuration).
 
 
-# do not make repository clone cheap: interferes with versioneer
+# do not make repository clone cheap: interferes with setuptools-scm
 shallow_clone: false
 
 

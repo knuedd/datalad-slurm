@@ -15,3 +15,4 @@ dist/
 venv/
 tests/slurm_config.txt
 tests/slurm.template.sh
+src/datalad_slurm/_version.py

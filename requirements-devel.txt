@@ -5,6 +5,7 @@ coverage
 twine
 
 # requirements for a document building
+datalad>=0.18.0
 sphinx
 sphinx_rtd_theme
 sphinx_copybutton
