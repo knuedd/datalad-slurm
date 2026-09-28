@@ -95,8 +95,18 @@ def get_realpath_mismatch(dset):
 
 
 def get_database_path(dset):
-    """Return the path of the sqlite3 database for a dataset."""
-    return dset.pathobj / ".git" / f"{dset.id}.db"
+    """Return the path of the sqlite3 database for a dataset.
+
+    The database is named after the dataset ID. If the dataset ID cannot be
+    determined (e.g. because the ``.datalad/`` subdirectory is missing in a
+    git-annex repository), a fixed fallback name is used so that the command
+    still works.
+    """
+    if dset.id is None:
+        db_name = "datalad-slurm.db"
+    else:
+        db_name = f"{dset.id}.db"
+    return dset.pathobj / ".git" / db_name
 
 
 def table_exists(cur, name):

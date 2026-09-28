@@ -688,6 +688,10 @@ def schedule_cmd(
         slurm_run_info["pwd"] = rel_pwd
     if ds.id:
         slurm_run_info["dsid"] = ds.id
+    else:
+        # fallback when the dataset ID cannot be determined, e.g. because the
+        # .datalad/ subdirectory is missing in a git-annex repository
+        slurm_run_info["dsid"] = 0xDA7A1AD
     if extra_info:
         slurm_run_info.update(extra_info)
 
