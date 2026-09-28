@@ -12,6 +12,13 @@ on:
   # Allow manually triggering a release via the "Run workflow" button:
   workflow_dispatch:
 
+permissions:
+  # Needed to push the release commit and tag:
+  contents: write
+  # Needed to comment on PRs and issues:
+  issues: write
+  pull-requests: write
+
 jobs:
   release:
     runs-on: ubuntu-24.04
