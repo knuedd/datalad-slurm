@@ -1,20 +1,36 @@
 name: Publish to PyPI
 
 on:
-  release:
-    types: [published]
+  # The DataLad release action creates the GitHub release using GITHUB_TOKEN,
+  # and GitHub does not start new workflow runs from GITHUB_TOKEN-triggered
+  # events (such as `release: published`). Triggering on completion of the
+  # Release workflow works around that limitation.
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
+  # Allow manually publishing the tip of a branch:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # required for OIDC trusted publishing
+  # Required for OIDC trusted publishing:
+  id-token: write
+  # Required to check out the repository:
+  contents: read
 
 jobs:
   publish:
     runs-on: ubuntu-24.04
     environment: pypi
+    # Only publish after a successful release, or when run manually:
+    if: >
+      github.event_name == 'workflow_dispatch'
+      || github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@v6
         with:
+          # Check out the branch the release ran on, so the just-created
+          # release tag is reachable for setuptools-scm:
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
           fetch-depth: 0          # setuptools-scm needs the tag
       - uses: actions/setup-python@v6
         with:

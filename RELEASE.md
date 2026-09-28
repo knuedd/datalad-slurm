@@ -29,10 +29,31 @@ Releases are created by the
 The release can also be triggered manually from the Actions tab via the
 **Run workflow** button on the *Release* workflow.
 
-When the GitHub release is published, the `.github/workflows/publish.yml`
-workflow runs, builds the distribution, and uploads it to PyPI using
+When the *Release* workflow finishes successfully, the
+`.github/workflows/publish.yml` workflow runs, builds the distribution, and
+uploads it to PyPI using
 [trusted publishing](https://docs.pypi.org/trusted-publishers/) (OIDC), so no
 PyPI token is stored anywhere.
+
+> **Note:** `publish.yml` triggers on `workflow_run` completion of the
+> *Release* workflow, **not** on `release: published`. The DataLad release
+> action creates the GitHub release with `GITHUB_TOKEN`, and GitHub does not
+> start new workflow runs from `GITHUB_TOKEN`-triggered events, so a
+> `release: published` trigger would silently never fire.
+
+### Releasing to PyPI next time
+
+1. Let the *Release* workflow create the new tag and GitHub release (see
+   above). The bump is automatic.
+2. That successful run automatically starts *Publish to PyPI*; wait for it to
+   finish and check <https://pypi.org/project/datalad-slurm/#history>.
+3. If it did **not** run or failed, trigger it by hand: Actions →
+   **Publish to PyPI** → **Run workflow** → branch `main`. This builds whatever
+   version the tip of `main` resolves to, so only do it once the release tag
+   exists.
+
+The one-time trusted-publisher registration on PyPI is described below; it does
+not need repeating for every release.
 
 ### Trusted publishing setup (one-time)
 
@@ -46,9 +67,9 @@ GitHub publisher with:
 - Environment: `pypi`
 
 The workflow name and environment must match `publish.yml` exactly. Note that
-`publish.yml` must be present on the default branch (`main`) before a release
-can be published, because PyPI resolves the trusted publisher against the
-default branch.
+`publish.yml` must be present on the repository's default branch (`develop`),
+because PyPI resolves the trusted publisher against the default branch and
+that is where GitHub looks up `workflow_run` workflows.
 
 Because trusted publishing relies on an OIDC identity token issued by GitHub
 Actions, it only works from a supported CI environment. It cannot be used from
