@@ -337,29 +337,56 @@ def finish_cmd(
         return
 
     # check if there was an alt_dir specified at schedule or reschedule time
-    if 'slurm_run_info' in results and 'alt_dir' in results['slurm_run_info']:
-        alt_dir= results['slurm_run_info']['alt_dir'] 
-        if alt_dir: # not '' and not None
-
-            for o in results['slurm_run_info']['outputs'] + results['slurm_run_info']['slurm_outputs']:
-                dir= op.dirname(o)
-                command=f"cp -r -L -u {alt_dir}/{o} {dir}/"
-                print(f"        copy back from alternative dir: '{command}' in '{ds_path}'")
-                result = subprocess.run(
-                    command, shell=True, capture_output=True, text=True, cwd=ds_path # always run from the root of the repository
-                )
-                # Extract result from copy command
-                #stdout = result.stdout
-                #print("            result: ", result.stdout)
-
+    alt_dir = results['slurm_run_info'].get('alt_dir') or ""
+    if alt_dir:
+        for o in (
+            results['slurm_run_info']['outputs']
+            + results['slurm_run_info']['slurm_outputs']
+        ):
+            dir = op.dirname(o)
+            command = f"cp -r -L -u {alt_dir}/{o} {dir}/"
+            print(
+                f"        copy back from alternative dir: '{command}' in "
+                f"'{ds_path}'"
+            )
+            subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                # always run from the root of the repository
+                cwd=ds_path,
+            )
 
     run_message = results["run_message"]
     slurm_run_info = results["slurm_run_info"]
-    # set unuion of outputs from both submission and completion
-    outputs_to_save = list( set( ensure_list(slurm_run_info["outputs"]) + ensure_list(slurm_run_info["slurm_outputs"]) ) )
+
+    # Outputs recorded by `slurm-schedule` are relative to the dataset root,
+    # while the slurm stdout/stderr files are recorded relative to the
+    # directory the job was submitted from (stored in `slurm_run_info["pwd"]`).
+    # Normalize both to paths relative to the dataset root so that neither
+    # globbing nor saving depends on the directory `slurm-finish` is called
+    # from. For jobs run in an alternative directory the slurm output files
+    # were copied back relative to the dataset root above.
+    submit_rel_pwd = slurm_run_info.get("pwd") or ""
+    slurm_output_base = ds_path if alt_dir else op.normpath(
+        op.join(ds_path, submit_rel_pwd)
+    )
+    slurm_outputs_rel = []
+    for p in ensure_list(slurm_run_info["slurm_outputs"]):
+        if not p:
+            # `slurm-schedule` appends an empty placeholder for the env file
+            continue
+        absp = p if op.isabs(p) else op.join(slurm_output_base, p)
+        slurm_outputs_rel.append(op.relpath(absp, ds_path))
+
+    # set union of outputs from both submission and completion, preserving order
+    output_patterns = list(dict.fromkeys(
+        ensure_list(slurm_run_info["outputs"]) + slurm_outputs_rel
+    ))
 
     # should throw an error if user doesn't specify outputs or directory
-    if not outputs_to_save:
+    if not output_patterns:
         err_msg = "You must specify which outputs to save from this slurm run."
         yield get_status_dict("slurm-finish", status="impossible", message=err_msg)
         return
@@ -397,8 +424,12 @@ def finish_cmd(
                     yield get_status_dict("slurm-finish", status="ok", message=message)
                     return
 
-    # expand the wildcards
-    globbed_outputs = GlobbedPaths(outputs_to_save, expand=True).paths
+    # expand the wildcards. The patterns are relative to the dataset root
+    # (see above), so glob relative to the dataset root as well. Globbing
+    # relative to the current working directory would depend on where
+    # `slurm-finish` is called from and silently save nothing from any
+    # directory other than the submission directory or the dataset root.
+    globbed_outputs = GlobbedPaths(output_patterns, pwd=ds_path, expand=True).paths
 
     # update the run info with the new outputs
     slurm_run_info["outputs"] = globbed_outputs
@@ -439,14 +470,12 @@ def finish_cmd(
         '"{}"'.format(record) if record_path else record,
     )
 
-    # remove the job
-    remove_from_database(ds, slurm_run_info)
-
     start_branch=""
     if branch:
         start_branch= ds.repo.get_active_branch()
         ds.repo.checkout(branch,["-b"])
 
+    save_failed = False
     if do_save:
         with chpwd(pwd):
             for r in Save.__call__(
@@ -462,10 +491,29 @@ def finish_cmd(
                 result_renderer="disabled",
                 on_failure="ignore",
             ):
+                if r.get("status") in ("error", "impossible"):
+                    save_failed = True
                 yield r
 
     if branch:
         ds.repo.checkout(f"{start_branch}")
+
+    # Only remove the job from the database once its outputs have actually
+    # been saved. Removing it beforehand would silently drop the job (and its
+    # lock entries) if the save failed, leaving the output uncommitted and the
+    # job no longer finishable.
+    if save_failed:
+        yield get_status_dict(
+            "slurm-finish",
+            status="error",
+            message=(
+                "Failed to save the outputs; the job was kept in the database. "
+                "Fix the problem and run `datalad slurm-finish` again."
+            ),
+        )
+        return
+
+    remove_from_database(ds, slurm_run_info)
 
 
 def extract_from_db(dset, slurm_job_id):
